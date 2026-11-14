@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sqlite3
+import subprocess
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -122,6 +123,10 @@ def get_project_or_404(project_id: str) -> dict[str, Any]:
         ).fetchall()
     project["assets"] = [dict(asset) for asset in assets]
     return project
+
+
+class AssembleRequest(BaseModel):
+    asset_ids: list[str] = Field(min_length=2, max_length=30)
 
 
 class ProjectCreate(BaseModel):
@@ -250,6 +255,75 @@ async def generate(project_id: str, workflow_name: str) -> dict[str, Any]:
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Could not submit workflow to ComfyUI: {exc}") from exc
     return {"submitted": True, "prompt_id": result.get("prompt_id"), "node_errors": result.get("node_errors", {})}
+
+
+@app.post("/api/projects/{project_id}/assemble")
+def assemble_project(project_id: str, payload: AssembleRequest) -> dict[str, Any]:
+    """Assemble selected project video assets in the supplied order using FFmpeg."""
+    get_project_or_404(project_id)
+    if len(set(payload.asset_ids)) != len(payload.asset_ids):
+        raise HTTPException(status_code=400, detail="Duplicate asset IDs are not allowed")
+    with connect_db() as db:
+        placeholders = ",".join("?" for _ in payload.asset_ids)
+        rows = db.execute(
+            f"SELECT id, filename, stored_name FROM assets WHERE project_id = ? AND id IN ({placeholders})",
+            [project_id, *payload.asset_ids],
+        ).fetchall()
+    by_id = {row["id"]: row for row in rows}
+    if len(by_id) != len(payload.asset_ids):
+        raise HTTPException(status_code=400, detail="One or more assets do not belong to this project")
+    selected = [by_id[asset_id] for asset_id in payload.asset_ids]
+    video_exts = {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+    if any(Path(row["filename"]).suffix.lower() not in video_exts for row in selected):
+        raise HTTPException(status_code=415, detail="This first version assembles video clips only")
+    ffmpeg = os.getenv("FFMPEG_BINARY", "ffmpeg")
+    try:
+        check = subprocess.run([ffmpeg, "-version"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        raise HTTPException(status_code=503, detail="FFmpeg is not installed on the studio server")
+    if check.returncode != 0:
+        raise HTTPException(status_code=503, detail="FFmpeg is unavailable on the studio server")
+    render_id = str(uuid.uuid4())
+    render_dir = DATA_DIR / "renders" / project_id
+    render_dir.mkdir(parents=True, exist_ok=True)
+    output_path = render_dir / (render_id + ".mp4")
+    concat_path = render_dir / (render_id + ".txt")
+    lines = []
+    for row in selected:
+        source = UPLOAD_DIR / project_id / row["stored_name"]
+        if not source.is_file():
+            raise HTTPException(status_code=404, detail="A source file is missing")
+        lines.append("file '" + source.as_posix() + "'")
+    concat_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        result = subprocess.run(
+            [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_path),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(output_path)],
+            capture_output=True, text=True, timeout=900,
+        )
+        if result.returncode != 0 or not output_path.is_file():
+            output_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail=(result.stderr or "FFmpeg assembly failed")[-1800:])
+    except subprocess.TimeoutExpired:
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=504, detail="Video assembly exceeded the 15-minute limit")
+    finally:
+        concat_path.unlink(missing_ok=True)
+    return {"render_id": render_id, "status": "completed",
+            "download_url": f"/api/projects/{project_id}/renders/{render_id}.mp4",
+            "message": "הסרט הורכב בהצלחה"}
+
+
+@app.get("/api/projects/{project_id}/renders/{filename}")
+def download_render(project_id: str, filename: str) -> FileResponse:
+    get_project_or_404(project_id)
+    if not re.fullmatch(r"[0-9a-f-]{36}\.mp4", filename):
+        raise HTTPException(status_code=404, detail="Render not found")
+    path = DATA_DIR / "renders" / project_id / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Render not found")
+    return FileResponse(path, media_type="video/mp4", filename="agor-" + filename)
 
 
 @app.get("/api/generations/{prompt_id}")
