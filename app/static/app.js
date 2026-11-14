@@ -88,8 +88,33 @@ async function openProject(projectId) {
 }
 function renderAssets(assets) {
   const list = document.getElementById("asset-list");
-  list.innerHTML = assets.length ? assets.map(asset => `<div class="asset-row"><span>▧ ${escapeHtml(asset.filename)}</span><small>${(asset.size_bytes / 1024 / 1024).toFixed(1)} MB</small></div>`).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
+  list.innerHTML = assets.length ? assets.map(asset => {
+    const isVideo = /\\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
+    const selector = isVideo ? '<input class="assembly-select" type="checkbox" value="' + escapeHtml(asset.id) + '">' : '';
+    return '<div class="asset-row"><label>' + selector + '<span>▧ ' + escapeHtml(asset.filename) + '</span></label><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small></div>';
+  }).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
+  list.querySelectorAll(".assembly-select").forEach(input => input.addEventListener("change", updateAssembleButton));
+  updateAssembleButton();
 }
+function updateAssembleButton() {
+  const selected = document.querySelectorAll(".assembly-select:checked").length;
+  document.getElementById("assemble-btn").disabled = selected < 2;
+}
+document.getElementById("assemble-btn").addEventListener("click", async () => {
+  const asset_ids = [...document.querySelectorAll(".assembly-select:checked")].map(input => input.value);
+  if (!activeProjectId || asset_ids.length < 2) return;
+  const button = document.getElementById("assemble-btn");
+  const result = document.getElementById("render-result");
+  button.disabled = true;
+  button.textContent = "מרכיב את הסרט…";
+  result.textContent = "השרת מעבד את קטעי הווידאו. זה עשוי לקחת כמה דקות.";
+  try {
+    const render = await api("/api/projects/" + encodeURIComponent(activeProjectId) + "/assemble", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset_ids})});
+    result.innerHTML = '<a class="render-download" href="' + escapeHtml(render.download_url) + '" download>הורדת הסרט המורכב ←</a>';
+    toast("הסרט הורכב בהצלחה");
+  } catch (error) { result.textContent = error.message; toast(error.message); }
+  finally { button.textContent = "הרכבת הסרט"; updateAssembleButton(); }
+});
 document.getElementById("close-detail").addEventListener("click", () => detailDialog.close());
 document.getElementById("asset-input").addEventListener("change", async event => {
   const files = [...event.target.files];
