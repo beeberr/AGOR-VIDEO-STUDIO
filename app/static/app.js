@@ -89,7 +89,7 @@ async function openProject(projectId) {
 function renderAssets(assets) {
   const list = document.getElementById("asset-list");
   list.innerHTML = assets.length ? assets.map(asset => {
-    const isVideo = /\\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
+    const isVideo = /\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
     const selector = isVideo ? '<input class="assembly-select" type="checkbox" value="' + escapeHtml(asset.id) + '">' : '';
     return '<div class="asset-row"><label>' + selector + '<span>▧ ' + escapeHtml(asset.filename) + '</span></label><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small></div>';
   }).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
