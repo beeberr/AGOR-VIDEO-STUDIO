@@ -7,6 +7,8 @@ A reusable video-production workspace built around **ComfyUI**. AGOR's brand fil
 - Hebrew, right-to-left studio dashboard.
 - Project creation and a seeded **AGOR — סרט מותג ראשון** project.
 - Upload and local organization of source video, images, and audio.
+- First FFmpeg assembly pass: select uploaded video clips in order, concatenate them, and download an MP4 render.
+- Docker image installs FFmpeg from the distribution package manager; no FFmpeg subscription is required.
 - ComfyUI connection health check.
 - Workflow discovery and a guarded API endpoint for submitting tested ComfyUI API-format workflows.
 - SQLite project metadata and local asset storage.
@@ -19,6 +21,8 @@ Requires Python 3.11+.
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
+
+Install FFmpeg separately on the host and ensure `ffmpeg` is on `PATH` (the Docker image includes it).
 cp .env.example .env
 uvicorn app.main:app --reload
 ```
