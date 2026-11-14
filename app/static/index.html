@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101715">
+  <title>AGOR Video Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">A</span>
+        <span><strong>AGOR</strong><small>VIDEO STUDIO</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <button class="nav-item active" type="button"><span>▦</span> הפרויקטים שלי</button>
+      <button class="nav-item" id="new-project-nav" type="button"><span>＋</span> פרויקט חדש</button>
+      <div class="sidebar-bottom">
+        <div class="side-label">ENGINE</div>
+        <div class="engine-card">
+          <span class="status-dot" id="engine-dot"></span>
+          <div><strong>ComfyUI</strong><small id="engine-status">בודק חיבור…</small></div>
+        </div>
+        <p class="sidebar-note">אולפן יצירה מבוסס AI ותהליכי עבודה מקצועיים.</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">CREATIVE WORKSPACE</div><h1>אולפן הווידאו שלך</h1></div>
+        <div class="top-actions"><span class="version">MVP · 0.1</span><button class="primary-btn" id="new-project-top">＋ יצירת פרויקט</button></div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow light">FROM IDEA TO FILM</div>
+          <h2>רעיונות גדולים.<br><em>סרטים שנשארים.</em></h2>
+          <p>סביבת עבודה אחת לתכנון, ארגון והפקת סרטוני שיווק, תדמית ותוכן — עם חיבור למנוע ComfyUI.</p>
+          <button class="hero-btn" id="hero-new">מתחילים ליצור <span>←</span></button>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="art-ring ring-one"></div><div class="art-ring ring-two"></div>
+          <div class="art-word">AGOR<span> / STUDIO</span></div>
+          <div class="art-caption">ENGINEERING · STORY · MOTION</div>
+        </div>
+      </section>
+
+      <section class="section-head">
+        <div><div class="eyebrow">YOUR WORK</div><h2>הפרויקטים שלך</h2></div>
+        <span class="project-count" id="project-count">0 פרויקטים</span>
+      </section>
+      <section class="projects-grid" id="projects-grid">
+        <div class="loading-card">טוען פרויקטים…</div>
+      </section>
+
+      <section class="engine-panel">
+        <div class="engine-icon">✳</div>
+        <div class="engine-info"><strong>מנוע היצירה</strong><p id="engine-detail">בודק את סביבת ComfyUI ואת תהליכי העבודה הזמינים.</p></div>
+        <div class="engine-meta"><span class="status-pill" id="connection-pill">בודק</span><span id="workflow-count">0 workflows</span></div>
+      </section>
+      <footer>AGOR VIDEO STUDIO <span>Built for ideas that move.</span></footer>
+    </main>
+  </div>
+
+  <dialog id="project-dialog">
+    <form id="project-form" method="dialog">
+      <div class="dialog-head"><div><div class="eyebrow">NEW WORKSPACE</div><h2>פרויקט חדש</h2></div><button class="icon-btn" type="button" id="close-dialog" aria-label="סגירה">×</button></div>
+      <label>שם הפרויקט<input name="title" required minlength="2" maxlength="100" placeholder="לדוגמה: סרטון מוצר חדש"></label>
+      <label>סוג הפרויקט<select name="project_type"><option value="brand-film">סרט תדמית</option><option value="product-video">סרטון מוצר</option><option value="social-video">תוכן לרשתות</option><option value="ad">פרסומת</option><option value="other">אחר</option></select></label>
+      <label>בריף / תיאור<textarea name="brief" rows="4" placeholder="מה אנחנו רוצים לספר? למי הסרטון מיועד?"></textarea></label>
+      <div class="dialog-actions"><button class="secondary-btn" type="button" id="cancel-dialog">ביטול</button><button class="primary-btn" type="submit">יצירת פרויקט</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="detail-dialog">
+    <div class="detail-wrap">
+      <div class="dialog-head"><div><div class="eyebrow">PROJECT WORKSPACE</div><h2 id="detail-title">פרויקט</h2></div><button class="icon-btn" type="button" id="close-detail" aria-label="סגירה">×</button></div>
+      <p class="detail-brief" id="detail-brief"></p>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-symbol">↥</div><strong>מוסיפים חומרי גלם</strong><p>וידאו, תמונות וקובצי אודיו — עד 500MB לקובץ</p>
+        <label class="upload-btn">בחירת קבצים<input type="file" id="asset-input" multiple accept="video/*,image/*,audio/*"></label>
+      </div>
+      <div class="asset-list" id="asset-list"></div>
+      <div class="workflow-note"><strong>שלב ההפקה</strong><p id="workflow-note-text">כדי להפעיל יצירה נדרש לחבר שרת ComfyUI ולהוסיף workflow שנבדק מול המודלים וה-nodes המותקנים בו. לא נציג כפתור יצירה פעיל לפני שהתהליך מוכן.</p></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
