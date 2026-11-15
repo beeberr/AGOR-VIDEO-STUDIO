@@ -3,6 +3,8 @@ const projectDialog = document.getElementById("project-dialog");
 const detailDialog = document.getElementById("detail-dialog");
 const toastEl = document.getElementById("toast");
 let activeProjectId = null;
+let projectAssets = [];
+let timelineClips = [];
 let toastTimer;
 
 function toast(message) {
@@ -82,38 +84,76 @@ async function openProject(projectId) {
     activeProjectId = project.id;
     document.getElementById("detail-title").textContent = project.title;
     document.getElementById("detail-brief").textContent = project.brief || "לא הוגדר בריף.";
+    timelineClips = [];
     renderAssets(project.assets || []);
     detailDialog.showModal();
   } catch (error) { toast(error.message); }
 }
 function renderAssets(assets) {
+  projectAssets = assets;
   const list = document.getElementById("asset-list");
   list.innerHTML = assets.length ? assets.map(asset => {
     const isVideo = /\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
-    const selector = isVideo ? '<input class="assembly-select" type="checkbox" value="' + escapeHtml(asset.id) + '">' : '';
-    return '<div class="asset-row"><label>' + selector + '<span>▧ ' + escapeHtml(asset.filename) + '</span></label><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small></div>';
+    const isAudio = /\.(wav|mp3|m4a|aac)$/i.test(asset.filename);
+    const action = isVideo
+      ? '<button class="asset-add-btn" type="button" data-add-clip="' + escapeHtml(asset.id) + '">＋ לציר העריכה</button>'
+      : '';
+    return '<div class="asset-row"><span>▧ ' + escapeHtml(asset.filename) + '</span><div class="asset-actions"><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small>' + action + '</div></div>';
   }).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
-  list.querySelectorAll(".assembly-select").forEach(input => input.addEventListener("change", updateAssembleButton));
-  updateAssembleButton();
+  list.querySelectorAll("[data-add-clip]").forEach(button => button.addEventListener("click", () => addClip(button.dataset.addClip)));
+  populateAudioTracks();
+  renderTimeline();
 }
-function updateAssembleButton() {
-  const selected = document.querySelectorAll(".assembly-select:checked").length;
-  document.getElementById("assemble-btn").disabled = selected < 2;
+function addClip(assetId) {
+  if (timelineClips.some(clip => clip.asset_id === assetId)) { toast("הקטע כבר נמצא בציר העריכה"); return; }
+  timelineClips.push({asset_id:assetId,start_seconds:0,end_seconds:null});
+  renderTimeline();
 }
-document.getElementById("assemble-btn").addEventListener("click", async () => {
-  const asset_ids = [...document.querySelectorAll(".assembly-select:checked")].map(input => input.value);
-  if (!activeProjectId || asset_ids.length < 2) return;
-  const button = document.getElementById("assemble-btn");
-  const result = document.getElementById("render-result");
-  button.disabled = true;
-  button.textContent = "מרכיב את הסרט…";
-  result.textContent = "השרת מעבד את קטעי הווידאו. זה עשוי לקחת כמה דקות.";
+function renderTimeline() {
+  const host = document.getElementById("timeline-list");
+  host.innerHTML = timelineClips.length ? timelineClips.map((clip,index) => {
+    const asset = projectAssets.find(item => item.id === clip.asset_id);
+    if (!asset) return "";
+    return '<article class="timeline-clip" data-clip-index="' + index + '"><div class="timeline-clip-head"><strong>' + (index+1) + '. ' + escapeHtml(asset.filename) + '</strong><div class="timeline-controls"><button type="button" data-up="' + index + '" aria-label="הזז למעלה" ' + (index===0?'disabled':'') + '>↑</button><button type="button" data-down="' + index + '" aria-label="הזז למטה" ' + (index===timelineClips.length-1?'disabled':'') + '>↓</button><button type="button" data-remove="' + index + '" aria-label="הסר">×</button></div></div><div class="trim-fields"><label>התחלה (שניות)<input type="number" min="0" step="0.1" value="' + clip.start_seconds + '" data-start="' + index + '"></label><label>סיום (ריק = סוף הקובץ)<input type="number" min="0.1" step="0.1" value="' + (clip.end_seconds ?? "") + '" data-end="' + index + '"></label></div></article>';
+  }).join("") : '<div class="timeline-empty">עדיין לא נוספו קטעים לציר העריכה. לחץ על „לציר העריכה” ליד סרטון בספריית חומרי הגלם.</div>';
+  host.querySelectorAll("[data-up]").forEach(button => button.addEventListener("click", () => moveClip(Number(button.dataset.up),-1)));
+  host.querySelectorAll("[data-down]").forEach(button => button.addEventListener("click", () => moveClip(Number(button.dataset.down),1)));
+  host.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => { timelineClips.splice(Number(button.dataset.remove),1); renderTimeline(); }));
+  host.querySelectorAll("[data-start]").forEach(input => input.addEventListener("change", () => { timelineClips[Number(input.dataset.start)].start_seconds = Math.max(0,Number(input.value)||0); }));
+  host.querySelectorAll("[data-end]").forEach(input => input.addEventListener("change", () => { const value=input.value.trim(); timelineClips[Number(input.dataset.end)].end_seconds=value===""?null:Math.max(0,Number(value)||0); }));
+  document.getElementById("render-timeline-btn").disabled = timelineClips.length === 0;
+}
+function moveClip(index,delta) {
+  const next=index+delta;
+  if (next<0 || next>=timelineClips.length) return;
+  [timelineClips[index],timelineClips[next]]=[timelineClips[next],timelineClips[index]];
+  renderTimeline();
+}
+function populateAudioTracks() {
+  const audio = projectAssets.filter(asset => /\.(wav|mp3|m4a|aac)$/i.test(asset.filename));
+  for (const [id,label] of [["voiceover-track","ללא קריינות"],["music-track","ללא מוזיקה"]]) {
+    const select=document.getElementById(id), previous=select.value;
+    select.innerHTML='<option value="">' + label + '</option>' + audio.map(asset=>'<option value="' + escapeHtml(asset.id) + '">' + escapeHtml(asset.filename) + '</option>').join("");
+    if (audio.some(asset=>asset.id===previous)) select.value=previous;
+  }
+}
+document.getElementById("render-timeline-btn").addEventListener("click", async () => {
+  if (!activeProjectId || !timelineClips.length) return;
+  const button=document.getElementById("render-timeline-btn"), result=document.getElementById("render-result");
+  button.disabled=true; button.textContent="מייצא…";
+  result.textContent="מייצר את הסרט לפי ציר העריכה. זה עשוי לקחת כמה דקות.";
+  const payload={
+    clips:timelineClips,
+    voiceover_asset_id:document.getElementById("voiceover-track").value || null,
+    music_asset_id:document.getElementById("music-track").value || null,
+    music_volume:Number(document.getElementById("music-volume").value)
+  };
   try {
-    const render = await api("/api/projects/" + encodeURIComponent(activeProjectId) + "/assemble", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset_ids})});
-    result.innerHTML = '<a class="render-download" href="' + escapeHtml(render.download_url) + '" download>הורדת הסרט המורכב ←</a>';
-    toast("הסרט הורכב בהצלחה");
-  } catch (error) { result.textContent = error.message; toast(error.message); }
-  finally { button.textContent = "הרכבת הסרט"; updateAssembleButton(); }
+    const render=await api("/api/projects/"+encodeURIComponent(activeProjectId)+"/render",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    result.innerHTML='<a class="render-download" href="' + escapeHtml(render.download_url) + '" download>הורדת הסרט המיוצא ←</a><span class="render-meta"> · ' + Math.round(render.duration_seconds) + ' שניות</span>';
+    toast("הייצוא הושלם");
+  } catch(error) { result.textContent=error.message; toast(error.message); }
+  finally { button.textContent="ייצוא הסרט"; button.disabled=timelineClips.length===0; }
 });
 document.getElementById("youtube-import-btn").addEventListener("click", async () => {
   const input = document.getElementById("youtube-url");
