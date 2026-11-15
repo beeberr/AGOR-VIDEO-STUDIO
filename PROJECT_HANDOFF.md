@@ -52,3 +52,21 @@ Do not redefine the goal as a 35–45 second teaser. The user explicitly said th
 - The studio home screen is visible and the existing **AGOR — סרט מותג ראשון** project is listed.
 - User wants to start from the source video already downloaded and present, and produce a substantial/full brand film following the original eleven points.
 - Current blocker: recover the exact original eleven points and inspect the project assets before making an edit.
+
+
+## Permanent continuity rule — user instruction (2026-11-15)
+
+The user explicitly requires that project work, decisions, plans, source links, the exact eleven-point brief once recovered, progress, blockers, and next steps be recorded in GitHub as work proceeds. Do not make the user repeatedly search for or re-explain earlier project material.
+
+At the start of every work session:
+1. Read this handoff file and relevant project docs on the working branch.
+2. Review recent commits and current repository state before proposing work.
+3. Continue from the recorded next step; do not restart or substitute a new plan.
+
+During and at the end of every work session:
+1. Update this handoff/log with decisions, completed work, exact current state, blockers, and the next concrete action.
+2. Commit the update to `feature/video-studio-mvp` (or the explicitly agreed working branch).
+3. Tell the user exactly what was saved and provide the commit/link.
+4. Never say something was saved unless the GitHub write returned success.
+
+If an important plan or source is mentioned but not present in the current chat or repository, record that it is pending recovery and ask the user to provide it only when necessary. Do not invent missing content. Once the original eleven points are supplied, preserve their exact wording and order in a separate canonical document (for example `production/AGOR_FILM_11_POINT_BRIEF.md`) and link it from this handoff file. The eleven-point brief must remain distinct from implementation notes and must not be paraphrased into a replacement plan without the user's approval.
