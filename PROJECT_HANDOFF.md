@@ -70,3 +70,8 @@ During and at the end of every work session:
 4. Never say something was saved unless the GitHub write returned success.
 
 If an important plan or source is mentioned but not present in the current chat or repository, record that it is pending recovery and ask the user to provide it only when necessary. Do not invent missing content. Once the original eleven points are supplied, preserve their exact wording and order in a separate canonical document (for example `production/AGOR_FILM_11_POINT_BRIEF.md`) and link it from this handoff file. The eleven-point brief must remain distinct from implementation notes and must not be paraphrased into a replacement plan without the user's approval.
+
+
+## Canonical source brief — 11 company strengths (2026-11-15)
+
+The user supplied the source wording for a film presenting the company's strengths: seven original principles plus four additional emphases. The exact text is preserved in `production/AGOR_FILM_11_POINT_BRIEF.md`. Keep the seven and four sections separate and preserve the wording/order. Do not merge repeated service-team points or alter company claims without user approval. The user's message ended with the standalone word «יש», so the source may be incomplete; ask for the continuation when appropriate. This canonical source brief, not a reconstructed summary, is the basis for the film's content.
