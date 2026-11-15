@@ -7,6 +7,7 @@ A reusable video-production workspace built around **ComfyUI**. AGOR's brand fil
 - Hebrew, right-to-left studio dashboard.
 - Project creation and a seeded **AGOR — סרט מותג ראשון** project.
 - Upload and local organization of source video, images, and audio.
+- Private YouTube import for videos the user owns or is authorized to reuse, using yt-dlp; YouTube links are validated and downloads are limited by configured file size, 15-minute duration, and 10-minute execution timeout.
 - First FFmpeg assembly pass: select uploaded video clips in order, concatenate them, and download an MP4 render.
 - Docker image installs FFmpeg from the distribution package manager; no FFmpeg subscription is required.
 - ComfyUI connection health check.
@@ -44,17 +45,17 @@ docker run --rm -p 8000:8000 -e COMFYUI_URL=http://host.docker.internal:8188 -v 
 |---|---|---|
 | `COMFYUI_URL` | ComfyUI server base URL | unset |
 | `DATA_DIR` | SQLite database and uploaded assets | `./data` |
-| `MAX_UPLOAD_MB` | Per-file upload limit | `500` |
+| `MAX_UPLOAD_MB` | Per-file upload and YouTube import size limit | `500` |
 
 ## Architecture
 
-- `app/main.py` — FastAPI API, SQLite persistence, upload handling, and ComfyUI integration.
+- `app/main.py` — FastAPI API, SQLite persistence, uploads, private YouTube import, FFmpeg assembly, and ComfyUI integration.
 - `app/static/` — browser dashboard.
 - `workflows/` — validated ComfyUI API-format workflow exports.
 
 ## Production notes
 
-The app server is the control plane; video generation runs on a separate machine or cloud GPU that hosts ComfyUI. Configure persistent storage for `DATA_DIR` before hosting real client assets. Do not expose an unauthenticated ComfyUI server to the public internet. Add authentication and private object storage before using this with confidential client media.
+The app server is the control plane; video generation runs on a separate machine or cloud GPU that hosts ComfyUI. Configure persistent storage for `DATA_DIR` before hosting real client assets. Do not expose an unauthenticated ComfyUI server to the public internet. The current studio API has no user authentication; keep it private and do not expose it publicly until authentication and private object storage are added. Only import videos you own or are authorized to reuse, and follow YouTube's terms and applicable copyright law.
 
 ## Product truth
 
