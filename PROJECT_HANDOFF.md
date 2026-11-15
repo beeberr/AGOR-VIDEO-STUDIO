@@ -156,3 +156,14 @@ Next: guide the user through updating the existing local clone on Android, one c
 The user confirmed that the previously shown video direction looked very good and asked to proceed with the plan already discussed, including the Hebrew narration/voiceover they liked. Do not restart creative exploration, ask the user to choose a new style, or return to unrelated PocketClaw/GitHub Copilot setup. Preserve the established premium cinematic direction and the existing narration approach; continue the full AGOR brand film around the 11 company points and the core line “הטכנולוגיה נעלמת, האיכות נשארת”.
 
 Important state distinction: the last verified local timeline snapshot showed the source clip on the timeline but voiceover/music fields set to none. The user's approval of the narration/creative direction is confirmed, but successful integration of the narration into the local timeline and a final rendered export are not yet verified. Next production work should focus on carrying the approved narration into the existing edit and finishing the film, without asking the user to repeat the creative brief.
+
+
+## First visual assembly rendered — 2026-11-15
+
+A real 150-second first assembly was rendered from the original project video in the user's Library; no new upload was needed. The export is `AGOR_BRAND_FILM_150s_v1.mp4`, H.264/AAC, 1280x720, 150.021 seconds. It uses 11 selected real-footage sections in a new sequence, light image grading, Hebrew on-screen captions covering all 11 source points, the core line “הטכנולוגיה נעלמת, האיכות נשארת”, and a fade on the original source audio. The original source was not modified.
+
+**Honest status:** this is a first visual assembly/review cut, not a finished narrated master. No new Hebrew voiceover was added; the 11 points are currently on-screen text, not spoken narration. The export is 720p, not 1080p. Available footage does not visibly prove every claim (factory, steel anchoring, service teams); these claims are in the user's source brief but need real supporting footage or fact-checking before public release. “Only one in the country” and technical/safety claims must be confirmed by the company.
+
+Report: `production/AGOR_BRAND_FILM_FIRST_ASSEMBLY_REPORT.md`.
+
+Next: user reviews this first cut; then add approved Hebrew voiceover, music bed, authentic supporting engineering/service shots, and render a verified 1080p master. Never describe this first cut as the final complete film.
