@@ -132,3 +132,20 @@ A user screenshot confirms the 137.6 MB AGOR project video is now clip 1 in the 
 ## Workflow decision — automated video storyboard (2026-11-15)
 
 The user rejected manually sending repeated screenshots while reviewing footage. Do not request screenshot after screenshot. Planned solution: implement a built-in storyboard/contact-sheet feature that extracts representative frames at regular intervals from the already-imported source video and displays them with timestamps in one consolidated view. Keep the original source untouched and never fabricate technical mechanism visuals. This is a product decision only; feature is not yet implemented or available. Implement and verify it on `feature/video-studio-mvp` before telling the user to use it.
+
+
+## Automatic Storyboard feature — implementation status (2026-11-15)
+
+Implemented on branch `feature/video-studio-mvp`:
+- Video assets now have a “לוח תמונות” action in the asset library.
+- Clicking it calls a FastAPI endpoint that probes the original asset with FFprobe and extracts representative JPEG frames with FFmpeg.
+- User-selectable sampling interval: 5, 10, 15, or 30 seconds. For long videos, interval is automatically increased to keep the gallery at or below 80 frames.
+- Frames are displayed in a responsive gallery with timestamps; thumbnails are cached under DATA_DIR/storyboards and source media is not modified.
+- Empty/missing/non-video assets return clear errors; this is useful for the zero-byte second asset (it will not be processed).
+- Added README documentation.
+
+Files changed: `app/main.py`, `app/static/index.html`, `app/static/app.js`, `app/static/styles.css`, `README.md`.
+
+Important deployment state: code is committed to GitHub, but the user's Android/Termux server at 127.0.0.1:8000 does not update automatically from a GitHub commit. User must pull the latest branch and restart the app before the new button appears. Runtime verification against the user's actual 137.6 MB video has not yet been performed. Do not claim storyboard generation succeeded until the user runs it and reports the result.
+
+Next: guide the user through updating the existing local clone on Android, one command at a time, without recloning or re-downloading the source video. Then open the AGOR project and tap “לוח תמונות” next to the 137.6 MB clip.
