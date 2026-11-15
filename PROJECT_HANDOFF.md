@@ -110,3 +110,15 @@ Required operating procedure:
 - The previously downloaded video is understood to be present in the user's local studio, but its media file is not accessible in this chat's file search or GitHub repository. Do not ask the user to download it again.
 - Created `production/AGOR_FOOTAGE_INVENTORY.md` to record this status and the immediate next step: inspect the already-imported assets in the local studio using one screenshot of the project's media library, then map them to the eight script scenes and eleven source points.
 - No video edit or render has been performed yet; do not imply otherwise.
+
+
+## Confirmed local workspace inventory — 2026-11-15
+
+The user pasted the actual PROJECT WORKSPACE content for "AGOR — סרט מותג ראשון". The project description states a cinematic brand film target of approximately 150 seconds and the core story line: **"הטכנולוגיה נעלמת, האיכות נשארת"**. Required truthful product details: hydraulic movable pool floor; mechanism fully concealed inside the water with no visible cables or lifting accessories; steel engineering/construction anchored to the building; water-based hydraulic system with no oil; Israeli manufacturing/know-how; four service teams and locally available parts. Real product footage must prove operation; AI is only for atmosphere/design supplementation, never to fabricate an unseen engineering mechanism.
+
+Visible local media:
+- קובץ פרויקטים אגור - Agor Engineering (1080p, h264) (1).mp4 — 137.6 MB. Available in the local workspace, not yet confirmed added to timeline.
+- New hydraulic movable floor for surf pool by Agor Engineering - Agor Engineering (1080p, h264)-3.mp4 — 0.0 MB. Treat as an empty/incomplete import; do not use until validated.
+
+Immediate next user action: click "+ לציר העריכה" next to the 137.6 MB file only, then show the timeline state. Do not ask to download that source again. No editing/rendering has yet been performed.
+See production/AGOR_FOOTAGE_INVENTORY.md for full inventory and exact workspace description.
