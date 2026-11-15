@@ -8,6 +8,7 @@ A reusable video-production workspace built around **ComfyUI**. AGOR's brand fil
 - Project creation and a seeded **AGOR — סרט מותג ראשון** project.
 - Upload and local organization of source video, images, and audio.
 - Private YouTube import for videos the user owns or is authorized to reuse, using yt-dlp; YouTube links are validated and downloads are limited by configured file size, 15-minute duration, and 10-minute execution timeout.
+- Automatic video storyboard: extract up to 80 representative frames from an existing video asset at selectable intervals (5/10/15/30 seconds), with timestamped responsive thumbnails; original media remains unchanged.
 - Timeline editor: add source clips, reorder them, set per-clip in/out points in seconds, and export a normalized 1080p MP4 with FFmpeg.
 - Separate optional voiceover and music tracks, including adjustable music volume; the render mixes the selected audio tracks and loops background music to the film duration.
 - Docker image installs FFmpeg from the distribution package manager; no FFmpeg subscription is required.
@@ -50,7 +51,7 @@ docker run --rm -p 8000:8000 -e COMFYUI_URL=http://host.docker.internal:8188 -v 
 
 ## Architecture
 
-- `app/main.py` — FastAPI API, SQLite persistence, uploads, private YouTube import, trimmed timeline rendering with optional voiceover/music, and ComfyUI integration.
+- `app/main.py` — FastAPI API, SQLite persistence, uploads, private YouTube import, storyboard frame extraction, trimmed timeline rendering with optional voiceover/music, and ComfyUI integration.
 - `app/static/` — browser dashboard.
 - `workflows/` — validated ComfyUI API-format workflow exports.
 
