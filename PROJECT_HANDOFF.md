@@ -149,3 +149,10 @@ Files changed: `app/main.py`, `app/static/index.html`, `app/static/app.js`, `app
 Important deployment state: code is committed to GitHub, but the user's Android/Termux server at 127.0.0.1:8000 does not update automatically from a GitHub commit. User must pull the latest branch and restart the app before the new button appears. Runtime verification against the user's actual 137.6 MB video has not yet been performed. Do not claim storyboard generation succeeded until the user runs it and reports the result.
 
 Next: guide the user through updating the existing local clone on Android, one command at a time, without recloning or re-downloading the source video. Then open the AGOR project and tap “לוח תמונות” next to the 137.6 MB clip.
+
+
+## Creative direction reaffirmed — 2026-11-15
+
+The user confirmed that the previously shown video direction looked very good and asked to proceed with the plan already discussed, including the Hebrew narration/voiceover they liked. Do not restart creative exploration, ask the user to choose a new style, or return to unrelated PocketClaw/GitHub Copilot setup. Preserve the established premium cinematic direction and the existing narration approach; continue the full AGOR brand film around the 11 company points and the core line “הטכנולוגיה נעלמת, האיכות נשארת”.
+
+Important state distinction: the last verified local timeline snapshot showed the source clip on the timeline but voiceover/music fields set to none. The user's approval of the narration/creative direction is confirmed, but successful integration of the narration into the local timeline and a final rendered export are not yet verified. Next production work should focus on carrying the approved narration into the existing edit and finishing the film, without asking the user to repeat the creative brief.
