@@ -96,13 +96,45 @@ function renderAssets(assets) {
     const isVideo = /\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
     const isAudio = /\.(wav|mp3|m4a|aac)$/i.test(asset.filename);
     const action = isVideo
-      ? '<button class="asset-add-btn" type="button" data-add-clip="' + escapeHtml(asset.id) + '">＋ לציר העריכה</button>'
+      ? '<button class="asset-add-btn" type="button" data-add-clip="' + escapeHtml(asset.id) + '">＋ לציר העריכה</button><button class="asset-add-btn storyboard-trigger" type="button" data-storyboard="' + escapeHtml(asset.id) + '">▦ לוח תמונות</button>'
       : '';
     return '<div class="asset-row"><span>▧ ' + escapeHtml(asset.filename) + '</span><div class="asset-actions"><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small>' + action + '</div></div>';
   }).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
   list.querySelectorAll("[data-add-clip]").forEach(button => button.addEventListener("click", () => addClip(button.dataset.addClip)));
+  list.querySelectorAll("[data-storyboard]").forEach(button => button.addEventListener("click", () => generateStoryboard(button.dataset.storyboard, button)));
   populateAudioTracks();
   renderTimeline();
+}
+async function generateStoryboard(assetId, triggerButton) {
+  const panel = document.getElementById("storyboard-panel");
+  const status = document.getElementById("storyboard-status");
+  const grid = document.getElementById("storyboard-grid");
+  const meta = document.getElementById("storyboard-meta");
+  const interval = Number(document.getElementById("storyboard-interval")?.value || 10);
+  panel.hidden = false;
+  grid.innerHTML = "";
+  status.textContent = "מנתח את הסרטון ומחלץ תמונות מייצגות…";
+  meta.textContent = "הפעולה עשויה לקחת מעט זמן בהתאם לאורך הסרטון.";
+  if (triggerButton) { triggerButton.disabled = true; triggerButton.textContent = "מכין לוח…"; }
+  try {
+    const result = await api("/api/projects/" + encodeURIComponent(activeProjectId) + "/assets/" + encodeURIComponent(assetId) + "/storyboard?interval_seconds=" + interval);
+    const formatTime = seconds => {
+      const total = Math.floor(seconds);
+      return String(Math.floor(total / 60)).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0");
+    };
+    grid.innerHTML = result.frames.map((frame, index) =>
+      '<figure class="storyboard-frame"><img loading="lazy" src="' + escapeHtml(frame.url) + '" alt="פריים ' + (index + 1) + ' מתוך הסרטון בזמן ' + formatTime(frame.time_seconds) + '"><figcaption><strong>' + formatTime(frame.time_seconds) + '</strong><span>פריים ' + (index + 1) + '</span></figcaption></figure>'
+    ).join("");
+    const duration = formatTime(result.duration_seconds);
+    meta.textContent = result.frame_count + " תמונות · אורך הסרטון " + duration + " · מרווח " + result.interval_seconds + " שניות";
+    status.textContent = "הושלם. אפשר לעבור על כל התמונות ולזהות את הרגעים החשובים.";
+    panel.scrollIntoView({behavior:"smooth", block:"start"});
+  } catch (error) {
+    status.textContent = error.message;
+    toast(error.message);
+  } finally {
+    if (triggerButton) { triggerButton.disabled = false; triggerButton.textContent = "▦ לוח תמונות"; }
+  }
 }
 function addClip(assetId) {
   if (timelineClips.some(clip => clip.asset_id === assetId)) { toast("הקטע כבר נמצא בציר העריכה"); return; }
