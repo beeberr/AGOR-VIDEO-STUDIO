@@ -53,3 +53,8 @@ Next step: do not export the unedited full source. Keep start at 0 and end blank
 הפתרון שנבחר לתכנון: להוסיף לאולפן כלי Storyboard אוטומטי שמייצר מתוך קובץ הווידאו שכבר נמצא בפרויקט דף קשר של פריימים (thumbnail contact sheet) במרווחי זמן קבועים, עם חותמות זמן. המשתמש יוכל לפתוח תצוגה אחת מרוכזת; לאחר זיהוי רגעים מעניינים נוכל להפיק תצוגות ממוקדות או לבחור טווחי זמן לציר. חובה לשמור את קובץ המקור ללא שינוי. אין להציג או לייצר מנגנון הנדסי שלא מופיע בצילום המקורי.
 
 מצב: זו החלטת מוצר/זרימת עבודה. הקוד עדיין לא שונה והפיצ'ר עדיין לא קיים באפליקציה. יש לממש ולבדוק את הפיצ'ר בענף feature/video-studio-mvp לפני שמבקשים מהמשתמש להשתמש בו. אין לטעון שהוא זמין עד לאחר commit והוראות עדכון/הפעלה.
+
+
+## Storyboard feature implemented — 2026-11-15
+
+The AGOR Studio code now includes automatic storyboard extraction for existing video assets. The asset library displays a “לוח תמונות” button for each video. It extracts representative frames via FFmpeg, using a selectable 5/10/15/30-second interval (automatically widened for long videos to cap the gallery at 80 frames), and shows timestamps in a responsive grid. Frames are cached separately; the original source is never changed. A zero-byte file is rejected with an explanatory error. Code is committed, but local Termux app has not yet been updated and the feature has not yet been run on the user's footage.
