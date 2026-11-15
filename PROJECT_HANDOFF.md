@@ -101,3 +101,12 @@ Required operating procedure:
 - After a successful save, report the exact changed file(s), commit SHA, and GitHub link. If a write fails or GitHub is unavailable, say so plainly and do not imply that it was saved.
 - Do not claim to monitor conversations or save automatically in the background. The assistant can only record information when actively working in a conversation and when the GitHub connection is available. The user's requested workflow is to make the save part of each meaningful project step, not to promise invisible always-on syncing.
 - This instruction applies across AGOR-related conversations. For a different independent project, use a separate repository or clearly separated knowledge base rather than mixing unrelated project material into AGOR.
+
+
+## Editing session update — 2026-11-15
+
+- Resumed from the saved full-length brand-film script and canonical eleven-point brief.
+- Confirmed supporting project documents are available in the user's Library: `AGOR_17_Milestones_Illustrated.pdf`, `AGOR_17_Milestones.pdf`, and `AGOR 300X150.pdf`. These support technical accuracy and shot planning.
+- The previously downloaded video is understood to be present in the user's local studio, but its media file is not accessible in this chat's file search or GitHub repository. Do not ask the user to download it again.
+- Created `production/AGOR_FOOTAGE_INVENTORY.md` to record this status and the immediate next step: inspect the already-imported assets in the local studio using one screenshot of the project's media library, then map them to the eight script scenes and eleven source points.
+- No video edit or render has been performed yet; do not imply otherwise.
