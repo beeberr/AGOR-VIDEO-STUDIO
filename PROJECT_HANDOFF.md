@@ -122,3 +122,8 @@ Visible local media:
 
 Immediate next user action: click "+ לציר העריכה" next to the 137.6 MB file only, then show the timeline state. Do not ask to download that source again. No editing/rendering has yet been performed.
 See production/AGOR_FOOTAGE_INVENTORY.md for full inventory and exact workspace description.
+
+
+## Timeline confirmation — 2026-11-15
+
+A user screenshot confirms the 137.6 MB AGOR project video is now clip 1 in the editing timeline, start=0 seconds, optional end field blank (full source). No second clip is present. Voiceover and background music are both set to none. No trims, narration, music, or export have been applied. Do not export the untouched source as the finished film. Next: inspect actual source moments (especially floor movement and concealed underwater mechanism) using preview/screen captures or a short screen recording; no repeat download of the 137.6 MB source.
