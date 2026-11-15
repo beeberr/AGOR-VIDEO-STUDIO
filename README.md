@@ -61,3 +61,7 @@ The app server is the control plane; video generation runs on a separate machine
 ## Product truth
 
 Use authentic AGOR footage to demonstrate the actual hydraulic floor and concealed mechanism. AI imagery is suitable for mood, architectural context, and transitions, but must not invent or misrepresent product engineering. Claims such as patents, load ratings, service guarantees, and exclusivity should be verified before publication.
+
+## ReClip source intake
+
+For the first AGOR film, use [ReClip](https://github.com/averygan/reclip) as the dedicated downloader and this studio as the editing/production workspace. Download the approved AGOR source videos as MP4 in ReClip, then upload those files into the **AGOR — סרט מותג ראשון** project using **בחירת קבצים**. See [the ReClip import workflow](production/RECLIP_IMPORT_WORKFLOW.md) for the exact steps and approved source links.
