@@ -306,6 +306,113 @@ def import_youtube_asset(project_id: str, payload: YouTubeImportRequest) -> dict
     return {"id": asset_id, "filename": filename, "size_bytes": size_bytes, "message": "הסרטון נשמר בפרויקט"}
 
 
+@app.get("/api/projects/{project_id}/assets/{asset_id}/storyboard")
+def create_storyboard(project_id: str, asset_id: str, interval_seconds: int = 10) -> dict[str, Any]:
+    """Extract a compact set of representative frames from an existing project video."""
+    get_project_or_404(project_id)
+    if interval_seconds not in {5, 10, 15, 30}:
+        raise HTTPException(status_code=400, detail="בחר מרווח של 5, 10, 15 או 30 שניות")
+
+    with connect_db() as db:
+        row = db.execute(
+            "SELECT filename, stored_name FROM assets WHERE id = ? AND project_id = ?",
+            (asset_id, project_id),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="קובץ הווידאו לא נמצא בפרויקט")
+
+    video_extensions = {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+    if Path(row["filename"]).suffix.lower() not in video_extensions:
+        raise HTTPException(status_code=415, detail="Storyboard זמין לקובצי וידאו בלבד")
+
+    source = UPLOAD_DIR / project_id / row["stored_name"]
+    if not source.is_file() or source.stat().st_size == 0:
+        raise HTTPException(status_code=422, detail="קובץ הווידאו ריק או חסר")
+
+    ffprobe = os.getenv("FFPROBE_BINARY", "ffprobe")
+    ffmpeg = os.getenv("FFMPEG_BINARY", "ffmpeg")
+    try:
+        probe = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(source)],
+            capture_output=True, text=True, timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise HTTPException(status_code=503, detail="לא ניתן להפעיל FFprobe לבדיקת הסרטון") from exc
+    if probe.returncode != 0:
+        raise HTTPException(status_code=422, detail="לא ניתן לקרוא את קובץ הווידאו")
+    try:
+        duration = float(probe.stdout.strip())
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="לא ניתן לזהות את אורך הסרטון")
+    if duration <= 0:
+        raise HTTPException(status_code=422, detail="משך הסרטון אינו תקין")
+
+    # Keep the contact sheet manageable even for long source videos.
+    effective_interval = max(interval_seconds, (int(duration) + 79) // 80)
+    frame_count = min(80, max(1, int((duration + effective_interval - 1) // effective_interval)))
+    cache_key = f"{asset_id}_{effective_interval}_{source.stat().st_mtime_ns}_{source.stat().st_size}"
+    output_dir = DATA_DIR / "storyboards" / project_id / cache_key
+    output_dir.mkdir(parents=True, exist_ok=True)
+    pattern = output_dir / "frame-%03d.jpg"
+    existing = sorted(output_dir.glob("frame-*.jpg"))
+
+    if len(existing) < frame_count:
+        for old_frame in existing:
+            old_frame.unlink(missing_ok=True)
+        try:
+            result = subprocess.run(
+                [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(source),
+                 "-vf", f"fps=1/{effective_interval},scale=480:-1:flags=lanczos",
+                 "-frames:v", str(frame_count), "-q:v", "4", str(pattern)],
+                capture_output=True, text=True, timeout=240,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise HTTPException(status_code=503, detail="יצירת לוח התמונות נכשלה או חרגה ממגבלת הזמן") from exc
+        existing = sorted(output_dir.glob("frame-*.jpg"))
+        if result.returncode != 0 or not existing:
+            detail = (result.stderr or "FFmpeg לא הצליח לחלץ תמונות")[-900:]
+            raise HTTPException(status_code=422, detail=detail)
+
+    frames = []
+    for index, frame_path in enumerate(existing[:frame_count]):
+        frames.append({
+            "time_seconds": index * effective_interval,
+            "url": f"/api/projects/{project_id}/storyboard/{asset_id}/{frame_path.name}?interval_seconds={effective_interval}",
+        })
+    return {
+        "asset_id": asset_id,
+        "duration_seconds": round(duration, 2),
+        "interval_seconds": effective_interval,
+        "frame_count": len(frames),
+        "frames": frames,
+    }
+
+
+@app.get("/api/projects/{project_id}/storyboard/{asset_id}/{frame_name}")
+def get_storyboard_frame(project_id: str, asset_id: str, frame_name: str, interval_seconds: int = 10) -> FileResponse:
+    get_project_or_404(project_id)
+    if not re.fullmatch(r"frame-\\d{3}\\.jpg", frame_name) or interval_seconds not in {5, 10, 15, 30, *range(1, 901)}:
+        # The cache may use an automatically increased interval for long videos.
+        if not re.fullmatch(r"frame-\\d{3}\\.jpg", frame_name) or not 1 <= interval_seconds <= 900:
+            raise HTTPException(status_code=404, detail="תמונת Storyboard לא נמצאה")
+    with connect_db() as db:
+        row = db.execute(
+            "SELECT stored_name FROM assets WHERE id = ? AND project_id = ?",
+            (asset_id, project_id),
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="הקובץ לא נמצא")
+    source = UPLOAD_DIR / project_id / row["stored_name"]
+    if not source.is_file():
+        raise HTTPException(status_code=404, detail="קובץ המקור חסר")
+    cache_key = f"{asset_id}_{interval_seconds}_{source.stat().st_mtime_ns}_{source.stat().st_size}"
+    frame_path = DATA_DIR / "storyboards" / project_id / cache_key / frame_name
+    if not frame_path.is_file():
+        raise HTTPException(status_code=404, detail="תמונת Storyboard לא נמצאה")
+    return FileResponse(frame_path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
 @app.get("/api/workflows")
 def list_workflows() -> dict[str, Any]:
     names = sorted(path.stem for path in WORKFLOWS_DIR.glob("*.json")) if WORKFLOWS_DIR.exists() else []
