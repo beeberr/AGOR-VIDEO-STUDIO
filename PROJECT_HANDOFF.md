@@ -127,3 +127,8 @@ See production/AGOR_FOOTAGE_INVENTORY.md for full inventory and exact workspace 
 ## Timeline confirmation — 2026-11-15
 
 A user screenshot confirms the 137.6 MB AGOR project video is now clip 1 in the editing timeline, start=0 seconds, optional end field blank (full source). No second clip is present. Voiceover and background music are both set to none. No trims, narration, music, or export have been applied. Do not export the untouched source as the finished film. Next: inspect actual source moments (especially floor movement and concealed underwater mechanism) using preview/screen captures or a short screen recording; no repeat download of the 137.6 MB source.
+
+
+## Workflow decision — automated video storyboard (2026-11-15)
+
+The user rejected manually sending repeated screenshots while reviewing footage. Do not request screenshot after screenshot. Planned solution: implement a built-in storyboard/contact-sheet feature that extracts representative frames at regular intervals from the already-imported source video and displays them with timestamps in one consolidated view. Keep the original source untouched and never fabricate technical mechanism visuals. This is a product decision only; feature is not yet implemented or available. Implement and verify it on `feature/video-studio-mvp` before telling the user to use it.
