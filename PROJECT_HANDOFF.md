@@ -8,7 +8,7 @@ Working branch: `feature/video-studio-mvp`
 
 Build a reusable, professional video-production studio for AGOR — not a one-off short-video trimmer. The first production is the full AGOR brand film. The same studio must later support brand films, product demonstrations, advertisements, sales videos, and social content.
 
-Do not redefine the goal as a 35–45 second teaser. The user explicitly said that 35–40 seconds is not enough and asked to return to the original eleven-point production plan. The exact wording/order of those eleven points has not yet been recovered; **do not invent or silently replace them**. Recover the original list from the earlier project conversation before treating any proposed list as approved.
+Do not redefine the goal as a 35–45 second teaser. The user explicitly said that 35–40 seconds is not enough and asked to return to the original eleven-point production plan. The user's exact source wording for the seven original principles and four additional emphases is now preserved in `production/AGOR_FILM_11_POINT_BRIEF.md`. Keep that document canonical; do not invent, silently replace, merge, or paraphrase its points.
 
 ## Product architecture already agreed
 
@@ -85,3 +85,19 @@ A personal-context search for the first AGOR film conversation found only contin
 ## AGOR brand film — first script saved (2026-11-15)
 
 Created `production/AGOR_BRAND_FILM_SCRIPT_V1.md`, a first full-length script draft (~2:45 target) mapped to all seven original principles and four additional emphases. It includes eight scenes, voiceover, visual direction, on-screen text, source-point mapping, and fact-check/production notes. This is a proposal for user review, not an approved locked script. Next: receive user feedback, revise, then inventory available downloaded source footage and map real clips to scenes before generating voiceover and editing. Do not impose a 35–40 second limit.
+
+
+## User's standing GitHub memory/workflow instruction — reaffirmed (2026-11-15)
+
+The user explicitly says that the repository is for continuity because they remember earlier discussions while the assistant may not have access to every full prior conversation. They want **every meaningful idea, decision, plan, requirement, source, and work result from all AGOR project conversations** summarized and saved to GitHub, so future sessions can resume without making them search for or repeat material.
+
+Required operating procedure:
+- Treat this repository as the durable project knowledge base for AGOR Video Studio and AGOR brand-film production.
+- Capture information incrementally whenever an idea or decision reaches a useful conclusion; do not wait only until the end of a long session.
+- Keep source wording and user-approved decisions intact. Clearly distinguish verbatim source, assistant proposal, user-approved decision, open question, and unverified claim.
+- Store substantial topics in their own focused documents under suitable folders (for example `production/`, `design/`, `architecture/`, `research/`); link each from this handoff file or an appropriate index.
+- At each meaningful milestone and before ending a work session, update the relevant topic document(s) and this handoff with status, decisions, open questions, blockers, and the next action; commit to `feature/video-studio-mvp` unless another branch is agreed.
+- At the start of a new AGOR session, read this handoff, the linked topic documents relevant to the request, and recent repository history before asking the user to repeat anything.
+- After a successful save, report the exact changed file(s), commit SHA, and GitHub link. If a write fails or GitHub is unavailable, say so plainly and do not imply that it was saved.
+- Do not claim to monitor conversations or save automatically in the background. The assistant can only record information when actively working in a conversation and when the GitHub connection is available. The user's requested workflow is to make the save part of each meaningful project step, not to promise invisible always-on syncing.
+- This instruction applies across AGOR-related conversations. For a different independent project, use a separate repository or clearly separated knowledge base rather than mixing unrelated project material into AGOR.
