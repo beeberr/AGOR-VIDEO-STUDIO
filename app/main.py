@@ -9,6 +9,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Any, Iterator
 
 import httpx
@@ -129,6 +130,10 @@ class AssembleRequest(BaseModel):
     asset_ids: list[str] = Field(min_length=2, max_length=30)
 
 
+class YouTubeImportRequest(BaseModel):
+    url: str = Field(min_length=10, max_length=2048)
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(min_length=2, max_length=100)
     project_type: str = Field(default="marketing-video", max_length=40)
@@ -220,6 +225,72 @@ async def upload_asset(project_id: str, file: UploadFile = File(...)) -> dict[st
         "content_type": file.content_type,
         "size_bytes": total,
     }
+
+
+@app.post("/api/projects/{project_id}/import-youtube")
+def import_youtube_asset(project_id: str, payload: YouTubeImportRequest) -> dict[str, Any]:
+    """Download one YouTube video the user owns or is authorized to reuse."""
+    get_project_or_404(project_id)
+    parsed = urlparse(payload.url.strip())
+    allowed_hosts = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
+    if parsed.scheme != "https" or parsed.hostname not in allowed_hosts or parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="יש להזין קישור HTTPS תקין מ-YouTube בלבד")
+    if parsed.hostname == "youtu.be" and not parsed.path.strip("/"):
+        raise HTTPException(status_code=400, detail="קישור YouTube לא תקין")
+    if parsed.hostname != "youtu.be" and parsed.path not in {"/watch", "/shorts", "/live", "/embed"} and not parsed.path.startswith(("/shorts/", "/live/", "/embed/")):
+        raise HTTPException(status_code=400, detail="קישור YouTube לא תקין")
+
+    try:
+        import yt_dlp  # noqa: F401
+    except ImportError as exc:
+        raise HTTPException(status_code=503, detail="מנוע ההורדה אינו מותקן בשרת") from exc
+
+    project_dir = UPLOAD_DIR / project_id
+    project_dir.mkdir(parents=True, exist_ok=True)
+    asset_id = str(uuid.uuid4())
+    output_template = project_dir / f"{asset_id}.%(ext)s"
+    command = [
+        "yt-dlp", "--no-playlist", "--no-warnings",
+        "--max-filesize", f"{MAX_UPLOAD_BYTES}",
+        "--match-filter", "duration <= 900",
+        "--format", "best[ext=mp4]/best",
+        "--merge-output-format", "mp4",
+        "--output", str(output_template),
+        payload.url.strip(),
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=600)
+    except subprocess.TimeoutExpired as exc:
+        for candidate in project_dir.glob(f"{asset_id}.*"):
+            candidate.unlink(missing_ok=True)
+        raise HTTPException(status_code=504, detail="הורדת הסרטון חרגה ממגבלת 10 דקות") from exc
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="לא ניתן להפעיל את מנוע ההורדה בשרת") from exc
+
+    downloaded = [path for path in project_dir.glob(f"{asset_id}.*") if path.is_file()]
+    if result.returncode != 0 or not downloaded:
+        for candidate in downloaded:
+            candidate.unlink(missing_ok=True)
+        detail = (result.stderr or result.stdout or "ההורדה נכשלה")[-1200:]
+        raise HTTPException(status_code=422, detail=detail)
+    source = downloaded[0]
+    size_bytes = source.stat().st_size
+    if size_bytes > MAX_UPLOAD_BYTES:
+        source.unlink(missing_ok=True)
+        raise HTTPException(status_code=413, detail="הסרטון גדול ממגבלת ההעלאה המוגדרת באולפן")
+    extension = source.suffix.lower()
+    if extension not in ALLOWED_EXTENSIONS or extension not in {".mp4", ".webm", ".m4v", ".mov"}:
+        source.unlink(missing_ok=True)
+        raise HTTPException(status_code=415, detail="YouTube החזיר פורמט וידאו שאינו נתמך")
+    stored_name = source.name
+    filename = f"YouTube-{asset_id[:8]}{extension}"
+    with connect_db() as db:
+        db.execute(
+            "INSERT INTO assets (id, project_id, filename, stored_name, content_type, size_bytes, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (asset_id, project_id, filename, stored_name, "video/mp4" if extension == ".mp4" else "video/" + extension.lstrip("."), size_bytes, utc_now()),
+        )
+    return {"id": asset_id, "filename": filename, "size_bytes": size_bytes, "message": "הסרטון נשמר בפרויקט"}
 
 
 @app.get("/api/workflows")
