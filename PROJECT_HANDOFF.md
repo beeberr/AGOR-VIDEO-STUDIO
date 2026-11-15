@@ -80,3 +80,8 @@ The user supplied the source wording for a film presenting the company's strengt
 ## Historical context recovery note (2026-11-15)
 
 A personal-context search for the first AGOR film conversation found only continuation summaries, not the full first conversation or transcript. It recovered an earlier creative direction (premium cinematic film for AGOR, Israeli maker of hydraulic movable pool floors; quiet luxury, architectural excellence, engineering strength, safety, innovation; photorealistic luxury villas/pools, refined materials, cinematic camera/light, technically credible mechanism; factory, engineering, mechanism, real projects, Hebrew voiceover). This is recorded separately in `production/AGOR_FILM_11_POINT_BRIEF.md` as secondary context, not verbatim source. The first conversation's complete contents remain unavailable from the retrieved history. Do not claim full recovery. Continue using the canonical 11-point source exactly as provided by the user.
+
+
+## AGOR brand film — first script saved (2026-11-15)
+
+Created `production/AGOR_BRAND_FILM_SCRIPT_V1.md`, a first full-length script draft (~2:45 target) mapped to all seven original principles and four additional emphases. It includes eight scenes, voiceover, visual direction, on-screen text, source-point mapping, and fact-check/production notes. This is a proposal for user review, not an approved locked script. Next: receive user feedback, revise, then inventory available downloaded source footage and map real clips to scenes before generating voiceover and editing. Do not impose a 35–40 second limit.
