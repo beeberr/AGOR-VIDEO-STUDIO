@@ -130,6 +130,19 @@ class AssembleRequest(BaseModel):
     asset_ids: list[str] = Field(min_length=2, max_length=30)
 
 
+class TimelineClip(BaseModel):
+    asset_id: str
+    start_seconds: float = Field(default=0, ge=0)
+    end_seconds: float | None = Field(default=None, gt=0)
+
+
+class TimelineRenderRequest(BaseModel):
+    clips: list[TimelineClip] = Field(min_length=1, max_length=30)
+    voiceover_asset_id: str | None = None
+    music_asset_id: str | None = None
+    music_volume: float = Field(default=0.18, ge=0, le=1)
+
+
 class YouTubeImportRequest(BaseModel):
     url: str = Field(min_length=10, max_length=2048)
 
@@ -384,6 +397,145 @@ def assemble_project(project_id: str, payload: AssembleRequest) -> dict[str, Any
     return {"render_id": render_id, "status": "completed",
             "download_url": f"/api/projects/{project_id}/renders/{render_id}.mp4",
             "message": "הסרט הורכב בהצלחה"}
+
+
+@app.post("/api/projects/{project_id}/render")
+def render_timeline(project_id: str, payload: TimelineRenderRequest) -> dict[str, Any]:
+    """Render an ordered, trimmed video timeline with optional voiceover and music tracks."""
+    get_project_or_404(project_id)
+    clip_ids = [clip.asset_id for clip in payload.clips]
+    extra_ids = [asset_id for asset_id in (payload.voiceover_asset_id, payload.music_asset_id) if asset_id]
+    all_ids = list(dict.fromkeys(clip_ids + extra_ids))
+    with connect_db() as db:
+        placeholders = ",".join("?" for _ in all_ids)
+        rows = db.execute(
+            f"SELECT id, filename, stored_name FROM assets WHERE project_id = ? AND id IN ({placeholders})",
+            [project_id, *all_ids],
+        ).fetchall()
+    by_id = {row["id"]: row for row in rows}
+    if len(by_id) != len(all_ids):
+        raise HTTPException(status_code=400, detail="קובץ אחד או יותר לא שייך לפרויקט הזה")
+
+    video_exts = {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+    audio_exts = {".wav", ".mp3", ".m4a", ".aac"}
+    clips = []
+    total_duration = 0.0
+    ffprobe = os.getenv("FFPROBE_BINARY", "ffprobe")
+    ffmpeg = os.getenv("FFMPEG_BINARY", "ffmpeg")
+    for clip in payload.clips:
+        row = by_id[clip.asset_id]
+        if Path(row["filename"]).suffix.lower() not in video_exts:
+            raise HTTPException(status_code=415, detail="ציר העריכה מקבל קובצי וידאו בלבד")
+        source = UPLOAD_DIR / project_id / row["stored_name"]
+        if not source.is_file():
+            raise HTTPException(status_code=404, detail="קובץ וידאו חסר")
+        try:
+            probe = subprocess.run(
+                [ffprobe, "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(source)],
+                capture_output=True, text=True, timeout=15,
+            )
+            duration = float(probe.stdout.strip()) if probe.returncode == 0 else 0
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            duration = 0
+        if duration <= 0:
+            raise HTTPException(status_code=422, detail=f"לא ניתן לקרוא את אורך הסרטון: {row['filename']}")
+        end = clip.end_seconds if clip.end_seconds is not None else duration
+        if clip.start_seconds >= end or end > duration + 0.05:
+            raise HTTPException(status_code=422, detail=f"טווח החיתוך אינו תקין: {row['filename']}")
+        clip_duration = end - clip.start_seconds
+        total_duration += clip_duration
+        clips.append((source, clip.start_seconds, end))
+
+    if total_duration > 900:
+        raise HTTPException(status_code=413, detail="אורך הסרט המורכב מוגבל ל-15 דקות")
+
+    voice_path = None
+    music_path = None
+    if payload.voiceover_asset_id:
+        row = by_id[payload.voiceover_asset_id]
+        if Path(row["filename"]).suffix.lower() not in audio_exts:
+            raise HTTPException(status_code=415, detail="קריינות חייבת להיות קובץ אודיו")
+        voice_path = UPLOAD_DIR / project_id / row["stored_name"]
+    if payload.music_asset_id:
+        row = by_id[payload.music_asset_id]
+        if Path(row["filename"]).suffix.lower() not in audio_exts:
+            raise HTTPException(status_code=415, detail="מוזיקת רקע חייבת להיות קובץ אודיו")
+        music_path = UPLOAD_DIR / project_id / row["stored_name"]
+    for path in (voice_path, music_path):
+        if path and not path.is_file():
+            raise HTTPException(status_code=404, detail="קובץ אודיו חסר")
+
+    try:
+        check = subprocess.run([ffmpeg, "-version"], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        raise HTTPException(status_code=503, detail="FFmpeg אינו מותקן בשרת")
+    if check.returncode != 0:
+        raise HTTPException(status_code=503, detail="FFmpeg אינו זמין")
+
+    render_id = str(uuid.uuid4())
+    render_dir = DATA_DIR / "renders" / project_id
+    render_dir.mkdir(parents=True, exist_ok=True)
+    output_path = render_dir / (render_id + ".mp4")
+    command = [ffmpeg, "-y"]
+    filters = []
+    for index, (source, start, end) in enumerate(clips):
+        command.extend(["-i", str(source)])
+        filters.append(
+            f"[{index}:v:0]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS,"
+            "scale=1920:1080:force_original_aspect_ratio=decrease,"
+            "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=25,setsar=1"
+            f"[v{index}]"
+        )
+    video_inputs = "".join(f"[v{i}]" for i in range(len(clips)))
+    filters.append(f"{video_inputs}concat=n={len(clips)}:v=1:a=0[vout]")
+
+    audio_input_index = len(clips)
+    audio_labels = []
+    if voice_path:
+        command.extend(["-i", str(voice_path)])
+        filters.append(
+            f"[{audio_input_index}:a:0]aresample=48000,apad,atrim=duration={total_duration:.3f},"
+            f"asetpts=PTS-STARTPTS[voice]"
+        )
+        audio_labels.append("[voice]")
+        audio_input_index += 1
+    if music_path:
+        command.extend(["-stream_loop", "-1", "-i", str(music_path)])
+        filters.append(
+            f"[{audio_input_index}:a:0]aresample=48000,volume={payload.music_volume:.3f},"
+            f"atrim=duration={total_duration:.3f},asetpts=PTS-STARTPTS[music]"
+        )
+        audio_labels.append("[music]")
+    if len(audio_labels) == 2:
+        filters.append("[voice][music]amix=inputs=2:duration=longest:dropout_transition=2[aout]")
+    elif audio_labels:
+        filters.append(f"{audio_labels[0]}anull[aout]")
+
+    command.extend(["-filter_complex", ";".join(filters), "-map", "[vout]"])
+    if audio_labels:
+        command.extend(["-map", "[aout]", "-c:a", "aac", "-b:a", "192k"])
+    else:
+        command.append("-an")
+    command.extend([
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+        "-t", f"{total_duration:.3f}", "-movflags", "+faststart", str(output_path),
+    ])
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=1800)
+        if result.returncode != 0 or not output_path.is_file():
+            output_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail=(result.stderr or "FFmpeg render failed")[-1800:])
+    except subprocess.TimeoutExpired:
+        output_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=504, detail="ייצוא הסרט חרג ממגבלת 30 דקות")
+    return {
+        "render_id": render_id,
+        "status": "completed",
+        "duration_seconds": round(total_duration, 2),
+        "download_url": f"/api/projects/{project_id}/renders/{render_id}.mp4",
+        "message": "הסרט יוצא בהצלחה",
+    }
 
 
 @app.get("/api/projects/{project_id}/renders/{filename}")
