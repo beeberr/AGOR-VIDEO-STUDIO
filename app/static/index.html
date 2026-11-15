@@ -92,7 +92,18 @@
         <div class="youtube-import-row"><input type="url" id="youtube-url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." aria-label="קישור לסרטון YouTube"><button class="primary-btn" id="youtube-import-btn" type="button">ייבוא לפרויקט</button></div>
         <div id="youtube-import-status" aria-live="polite"></div>
       </section>
-      <section class="assembly-panel"><div class="assembly-heading"><strong>עריכת הסרט</strong><span>בחר לפחות שני קטעי וידאו</span></div><p>סמן את קטעי הווידאו לפי הסדר הרצוי, ואז הרכב סרט אחד.</p><button class="primary-btn" id="assemble-btn" type="button" disabled>הרכבת הסרט</button><div id="render-result" aria-live="polite"></div></section>
+      <section class="assembly-panel timeline-panel">
+        <div class="assembly-heading"><strong>ציר העריכה</strong><span>סדר, חתוך והרכב את הקטעים</span></div>
+        <p>הוסף קטעים מספריית חומרי הגלם. אפשר לשנות את הסדר ולחתוך את נקודת הכניסה והיציאה בשניות.</p>
+        <div id="timeline-list" class="timeline-list"><div class="timeline-empty">עדיין לא נוספו קטעים לציר העריכה.</div></div>
+        <div class="audio-tracks">
+          <label>קריינות / Voiceover<select id="voiceover-track"><option value="">ללא קריינות</option></select></label>
+          <label>מוזיקת רקע<select id="music-track"><option value="">ללא מוזיקה</option></select></label>
+          <label>עוצמת מוזיקה<input id="music-volume" type="range" min="0" max="0.5" step="0.01" value="0.18"></label>
+        </div>
+        <button class="primary-btn" id="render-timeline-btn" type="button" disabled>ייצוא הסרט</button>
+        <div id="render-result" aria-live="polite"></div>
+      </section>
       <div class="workflow-note"><strong>שלב ההפקה</strong><p id="workflow-note-text">כדי להפעיל יצירה נדרש לחבר שרת ComfyUI ולהוסיף workflow שנבדק מול המודלים וה-nodes המותקנים בו. לא נציג כפתור יצירה פעיל לפני שהתהליך מוכן.</p></div>
     </div>
   </dialog>
