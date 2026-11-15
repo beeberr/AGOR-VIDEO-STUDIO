@@ -86,6 +86,12 @@
         <label class="upload-btn">בחירת קבצים<input type="file" id="asset-input" multiple accept="video/*,image/*,audio/*"></label>
       </div>
       <div class="asset-list" id="asset-list"></div>
+      <section class="youtube-import-panel">
+        <strong>ייבוא סרטון מ-YouTube</strong>
+        <p>הדבק קישור לסרטון שבבעלותך או שיש לך הרשאה להשתמש בו. הסרטון יישמר ישירות בפרויקט.</p>
+        <div class="youtube-import-row"><input type="url" id="youtube-url" inputmode="url" placeholder="https://www.youtube.com/watch?v=..." aria-label="קישור לסרטון YouTube"><button class="primary-btn" id="youtube-import-btn" type="button">ייבוא לפרויקט</button></div>
+        <div id="youtube-import-status" aria-live="polite"></div>
+      </section>
       <section class="assembly-panel"><div class="assembly-heading"><strong>עריכת הסרט</strong><span>בחר לפחות שני קטעי וידאו</span></div><p>סמן את קטעי הווידאו לפי הסדר הרצוי, ואז הרכב סרט אחד.</p><button class="primary-btn" id="assemble-btn" type="button" disabled>הרכבת הסרט</button><div id="render-result" aria-live="polite"></div></section>
       <div class="workflow-note"><strong>שלב ההפקה</strong><p id="workflow-note-text">כדי להפעיל יצירה נדרש לחבר שרת ComfyUI ולהוסיף workflow שנבדק מול המודלים וה-nodes המותקנים בו. לא נציג כפתור יצירה פעיל לפני שהתהליך מוכן.</p></div>
     </div>
