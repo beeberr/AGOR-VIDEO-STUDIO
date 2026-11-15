@@ -37,3 +37,10 @@
 
 ## כיוון קריאייטיבי שאושר במסך סביבת העבודה
 הכיוון המרכזי המוצג בפרויקט הוא: "הטכנולוגיה נעלמת, האיכות נשארת". זהו ניסוח מוביל לפרויקט, ויש לשמר אותו כעוגן הסיפורי של הסרט. אורך היעד שמוצג בפרויקט הוא כ-150 שניות; יש להעדיף את היעד הזה על פני הצעת התסריט הקודמת של 2:30–3:00, עד להחלטה אחרת של המשתמש.
+
+
+## Timeline confirmation — 2026-11-15
+
+The user shared a screenshot of the AGOR Video Studio timeline. It confirms that `קובץ פרויקטים אגור - Agor Engineering (1080p, h264) (1).mp4` has been added as clip 1. Its start time is set to 0 seconds; the end field is blank (the UI labels it as optional, blank means file end). The screenshot shows no second clip in the timeline. Voiceover and background music are both set to none; music volume slider is visible. No trim points, narration, music, or export have been applied yet.
+
+Next step: do not export the unedited full source. Keep start at 0 and end blank for now. We need inspect the actual source footage to identify usable moments and plan the 150-second sequence. Ask the user to open/play the source video and share a short screen recording or a few screenshots at representative moments (especially floor lowering/raising and concealed mechanism underwater). If the studio has a preview/player, use it; otherwise use the already available source on the device. Do not ask them to download the 137.6 MB file again.
