@@ -115,6 +115,32 @@ document.getElementById("assemble-btn").addEventListener("click", async () => {
   } catch (error) { result.textContent = error.message; toast(error.message); }
   finally { button.textContent = "הרכבת הסרט"; updateAssembleButton(); }
 });
+document.getElementById("youtube-import-btn").addEventListener("click", async () => {
+  const input = document.getElementById("youtube-url");
+  const button = document.getElementById("youtube-import-btn");
+  const status = document.getElementById("youtube-import-status");
+  const url = input.value.trim();
+  if (!activeProjectId || !url) { toast("יש להדביק קישור YouTube"); return; }
+  button.disabled = true;
+  button.textContent = "מוריד…";
+  status.textContent = "מוריד את הסרטון ושומר אותו בפרויקט. זה עשוי לקחת כמה דקות.";
+  try {
+    await api("/api/projects/" + encodeURIComponent(activeProjectId) + "/import-youtube", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({url})
+    });
+    const updated = await api("/api/projects/" + encodeURIComponent(activeProjectId));
+    renderAssets(updated.assets || []);
+    input.value = "";
+    status.textContent = "הסרטון נוסף לספריית חומרי הגלם.";
+    toast("הסרטון נשמר בפרויקט");
+  } catch (error) {
+    status.textContent = error.message;
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "ייבוא לפרויקט";
+  }
+});
 document.getElementById("close-detail").addEventListener("click", () => detailDialog.close());
 document.getElementById("asset-input").addEventListener("change", async event => {
   const files = [...event.target.files];
