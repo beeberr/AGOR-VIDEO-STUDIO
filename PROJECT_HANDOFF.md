@@ -75,3 +75,8 @@ If an important plan or source is mentioned but not present in the current chat 
 ## Canonical source brief — 11 company strengths (2026-11-15)
 
 The user supplied the source wording for a film presenting the company's strengths: seven original principles plus four additional emphases. The exact text is preserved in `production/AGOR_FILM_11_POINT_BRIEF.md`. Keep the seven and four sections separate and preserve the wording/order. Do not merge repeated service-team points or alter company claims without user approval. The user's message ended with the standalone word «יש», so the source may be incomplete; ask for the continuation when appropriate. This canonical source brief, not a reconstructed summary, is the basis for the film's content.
+
+
+## Historical context recovery note (2026-11-15)
+
+A personal-context search for the first AGOR film conversation found only continuation summaries, not the full first conversation or transcript. It recovered an earlier creative direction (premium cinematic film for AGOR, Israeli maker of hydraulic movable pool floors; quiet luxury, architectural excellence, engineering strength, safety, innovation; photorealistic luxury villas/pools, refined materials, cinematic camera/light, technically credible mechanism; factory, engineering, mechanism, real projects, Hebrew voiceover). This is recorded separately in `production/AGOR_FILM_11_POINT_BRIEF.md` as secondary context, not verbatim source. The first conversation's complete contents remain unavailable from the retrieved history. Do not claim full recovery. Continue using the canonical 11-point source exactly as provided by the user.
