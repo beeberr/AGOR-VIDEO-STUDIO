@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import sqlite3
@@ -349,8 +350,8 @@ def create_storyboard(project_id: str, asset_id: str, interval_seconds: int = 10
         raise HTTPException(status_code=422, detail="משך הסרטון אינו תקין")
 
     # Keep the contact sheet manageable even for long source videos.
-    effective_interval = max(interval_seconds, (int(duration) + 79) // 80)
-    frame_count = min(80, max(1, int((duration + effective_interval - 1) // effective_interval)))
+    effective_interval = max(interval_seconds, math.ceil(duration / 80))
+    frame_count = min(80, max(1, math.ceil(duration / effective_interval)))
     cache_key = f"{asset_id}_{effective_interval}_{source.stat().st_mtime_ns}_{source.stat().st_size}"
     output_dir = DATA_DIR / "storyboards" / project_id / cache_key
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -392,10 +393,8 @@ def create_storyboard(project_id: str, asset_id: str, interval_seconds: int = 10
 @app.get("/api/projects/{project_id}/storyboard/{asset_id}/{frame_name}")
 def get_storyboard_frame(project_id: str, asset_id: str, frame_name: str, interval_seconds: int = 10) -> FileResponse:
     get_project_or_404(project_id)
-    if not re.fullmatch(r"frame-\\d{3}\\.jpg", frame_name) or interval_seconds not in {5, 10, 15, 30, *range(1, 901)}:
-        # The cache may use an automatically increased interval for long videos.
-        if not re.fullmatch(r"frame-\\d{3}\\.jpg", frame_name) or not 1 <= interval_seconds <= 900:
-            raise HTTPException(status_code=404, detail="תמונת Storyboard לא נמצאה")
+    if not re.fullmatch(r"frame-\d{3}\.jpg", frame_name) or not 1 <= interval_seconds <= 86400:
+        raise HTTPException(status_code=404, detail="תמונת Storyboard לא נמצאה")
     with connect_db() as db:
         row = db.execute(
             "SELECT stored_name FROM assets WHERE id = ? AND project_id = ?",
