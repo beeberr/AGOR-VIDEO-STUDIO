@@ -83,6 +83,13 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             )
         """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS project_edits (
+                project_id TEXT PRIMARY KEY REFERENCES projects(id),
+                edit_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
         existing = db.execute("SELECT id FROM projects WHERE id = ?", ("agor-first-film",)).fetchone()
         if not existing:
             db.execute(
@@ -135,10 +142,18 @@ class TimelineClip(BaseModel):
     asset_id: str
     start_seconds: float = Field(default=0, ge=0)
     end_seconds: float | None = Field(default=None, gt=0)
+    image_duration_seconds: float = Field(default=5, ge=0.5, le=60)
 
 
 class TimelineRenderRequest(BaseModel):
     clips: list[TimelineClip] = Field(min_length=1, max_length=30)
+    voiceover_asset_id: str | None = None
+    music_asset_id: str | None = None
+    music_volume: float = Field(default=0.18, ge=0, le=1)
+
+
+class TimelineEditRequest(BaseModel):
+    clips: list[TimelineClip] = Field(default_factory=list, max_length=30)
     voiceover_asset_id: str | None = None
     music_asset_id: str | None = None
     music_volume: float = Field(default=0.18, ge=0, le=1)
@@ -170,10 +185,24 @@ async def health() -> dict[str, Any]:
                 comfy["connected"] = response.is_success
         except httpx.HTTPError:
             comfy["connected"] = False
+    ffmpeg = {"available": False, "version": None, "ffprobe_available": False}
+    try:
+        ffmpeg_path = os.getenv("FFMPEG_BINARY", "ffmpeg")
+        ffprobe_path = os.getenv("FFPROBE_BINARY", "ffprobe")
+        result = subprocess.run([ffmpeg_path, "-version"], capture_output=True, text=True, timeout=5)
+        probe = subprocess.run([ffprobe_path, "-version"], capture_output=True, text=True, timeout=5)
+        ffmpeg["available"] = result.returncode == 0
+        ffmpeg["ffprobe_available"] = probe.returncode == 0
+        if result.returncode == 0:
+            match = re.search(r"ffmpeg version ([^\s]+)", result.stdout)
+            ffmpeg["version"] = match.group(1) if match else "available"
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     return {
         "app": "AGOR Video Studio",
         "status": "ok",
         "comfyui": comfy,
+        "ffmpeg": ffmpeg,
         "workflow_count": len(list(WORKFLOWS_DIR.glob("*.json"))) if WORKFLOWS_DIR.exists() else 0,
     }
 
@@ -199,6 +228,43 @@ def create_project(payload: ProjectCreate) -> dict[str, Any]:
 @app.get("/api/projects/{project_id}")
 def get_project(project_id: str) -> dict[str, Any]:
     return get_project_or_404(project_id)
+
+
+@app.get("/api/projects/{project_id}/edit")
+def get_project_edit(project_id: str) -> dict[str, Any]:
+    get_project_or_404(project_id)
+    with connect_db() as db:
+        row = db.execute("SELECT edit_json, updated_at FROM project_edits WHERE project_id = ?", (project_id,)).fetchone()
+    if not row:
+        return {"clips": [], "voiceover_asset_id": None, "music_asset_id": None, "music_volume": 0.18, "updated_at": None}
+    return {**json.loads(row["edit_json"]), "updated_at": row["updated_at"]}
+
+
+@app.put("/api/projects/{project_id}/edit")
+def save_project_edit(project_id: str, payload: TimelineEditRequest) -> dict[str, Any]:
+    get_project_or_404(project_id)
+    asset_ids = list(dict.fromkeys(
+        [clip.asset_id for clip in payload.clips]
+        + [asset_id for asset_id in (payload.voiceover_asset_id, payload.music_asset_id) if asset_id]
+    ))
+    if asset_ids:
+        placeholders = ",".join("?" for _ in asset_ids)
+        with connect_db() as db:
+            rows = db.execute(
+                f"SELECT id FROM assets WHERE project_id = ? AND id IN ({placeholders})",
+                [project_id, *asset_ids],
+            ).fetchall()
+        if len(rows) != len(asset_ids):
+            raise HTTPException(status_code=400, detail="One or more edit assets do not belong to this project")
+    edit = payload.dict()
+    updated_at = utc_now()
+    with connect_db() as db:
+        db.execute(
+            "INSERT INTO project_edits (project_id, edit_json, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(project_id) DO UPDATE SET edit_json = excluded.edit_json, updated_at = excluded.updated_at",
+            (project_id, json.dumps(edit, ensure_ascii=False), updated_at),
+        )
+    return {**edit, "updated_at": updated_at}
 
 
 @app.post("/api/projects/{project_id}/assets")
@@ -523,6 +589,7 @@ def render_timeline(project_id: str, payload: TimelineRenderRequest) -> dict[str
         raise HTTPException(status_code=400, detail="קובץ אחד או יותר לא שייך לפרויקט הזה")
 
     video_exts = {".mp4", ".mov", ".m4v", ".webm", ".avi"}
+    image_exts = {".jpg", ".jpeg", ".png", ".webp"}
     audio_exts = {".wav", ".mp3", ".m4a", ".aac"}
     clips = []
     total_duration = 0.0
@@ -530,11 +597,19 @@ def render_timeline(project_id: str, payload: TimelineRenderRequest) -> dict[str
     ffmpeg = os.getenv("FFMPEG_BINARY", "ffmpeg")
     for clip in payload.clips:
         row = by_id[clip.asset_id]
-        if Path(row["filename"]).suffix.lower() not in video_exts:
-            raise HTTPException(status_code=415, detail="ציר העריכה מקבל קובצי וידאו בלבד")
+        extension = Path(row["filename"]).suffix.lower()
+        if extension not in video_exts | image_exts:
+            raise HTTPException(status_code=415, detail="ציר העריכה מקבל קובצי וידאו ותמונה בלבד")
         source = UPLOAD_DIR / project_id / row["stored_name"]
         if not source.is_file():
             raise HTTPException(status_code=404, detail="קובץ וידאו חסר")
+        if extension in image_exts:
+            if clip.start_seconds != 0 or clip.end_seconds is not None:
+                raise HTTPException(status_code=422, detail=f"תמונת סטילס מתחילה בזמן 0 ומוגדרת לפי משך: {row['filename']}")
+            clip_duration = clip.image_duration_seconds
+            total_duration += clip_duration
+            clips.append((source, 0.0, clip_duration, True))
+            continue
         try:
             probe = subprocess.run(
                 [ffprobe, "-v", "error", "-show_entries", "format=duration",
@@ -551,7 +626,7 @@ def render_timeline(project_id: str, payload: TimelineRenderRequest) -> dict[str
             raise HTTPException(status_code=422, detail=f"טווח החיתוך אינו תקין: {row['filename']}")
         clip_duration = end - clip.start_seconds
         total_duration += clip_duration
-        clips.append((source, clip.start_seconds, end))
+        clips.append((source, clip.start_seconds, end, False))
 
     if total_duration > 900:
         raise HTTPException(status_code=413, detail="אורך הסרט המורכב מוגבל ל-15 דקות")
@@ -585,14 +660,22 @@ def render_timeline(project_id: str, payload: TimelineRenderRequest) -> dict[str
     output_path = render_dir / (render_id + ".mp4")
     command = [ffmpeg, "-y"]
     filters = []
-    for index, (source, start, end) in enumerate(clips):
-        command.extend(["-i", str(source)])
-        filters.append(
-            f"[{index}:v:0]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS,"
-            "scale=1920:1080:force_original_aspect_ratio=decrease,"
-            "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=25,setsar=1"
-            f"[v{index}]"
-        )
+    for index, (source, start, end, is_still) in enumerate(clips):
+        if is_still:
+            command.extend(["-loop", "1", "-framerate", "25", "-t", f"{end:.3f}", "-i", str(source)])
+            filters.append(
+                f"[{index}:v:0]scale=1920:1080:force_original_aspect_ratio=decrease,"
+                "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=25,setsar=1,"
+                f"trim=duration={end:.3f},setpts=PTS-STARTPTS[v{index}]"
+            )
+        else:
+            command.extend(["-i", str(source)])
+            filters.append(
+                f"[{index}:v:0]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS,"
+                "scale=1920:1080:force_original_aspect_ratio=decrease,"
+                "pad=1920:1080:(ow-iw)/2:(oh-ih)/2,fps=25,setsar=1"
+                f"[v{index}]"
+            )
     video_inputs = "".join(f"[v{i}]" for i in range(len(clips)))
     filters.append(f"{video_inputs}concat=n={len(clips)}:v=1:a=0[vout]")
 

@@ -22,3 +22,5 @@
 .storyboard-frame figcaption{display:flex;justify-content:space-between;gap:8px;padding:7px 9px;font-size:10px;color:#aebbb2}
 .storyboard-frame figcaption strong{color:var(--green);font-variant-numeric:tabular-nums}
 @media(max-width:600px){.storyboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.storyboard-panel{padding:12px}}
+
+.engine-card-secondary{margin-top:8px}.edit-save-status{min-height:18px;margin:5px 0 11px;color:var(--muted);font-size:10px}

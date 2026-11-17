@@ -1,8 +1,21 @@
 # AGOR Video Studio — Project Handoff / Continuity Log
 
-Last updated: 2026-11-15
+Last updated: 2026-11-17
 Repository: https://github.com/beeberr/AGOR-VIDEO-STUDIO
 Working branch: `feature/video-studio-mvp`
+
+## FFmpeg / studio continuation update (2026-11-17)
+
+- User clarified the active goal: finish building the reusable AGOR Video Studio, including FFmpeg setup, source media, editing, voiceover, image/frame work, and high-quality marketing-film output. Keep this aligned with the canonical eleven-point brief and the full brand-film plan; do not reduce the goal to a teaser.
+- Inspected the Windows Downloads folder recorded in the user's profile: `C:\Users\user\Dropbox\My PC (DESKTOP-6AU213S)\Downloads`.
+- Found `ffmpeg-9.0.2.tar.xz` (12,040,788 bytes; downloaded 2026-11-17) and `ffmpeg-7.1.5.tar.xz` (11,050,340 bytes; downloaded 2026-11-17). Inspected their archives: both contain source tree entries such as `Makefile` and `libavcodec/`; neither contains `ffmpeg.exe` or `ffprobe.exe`. They are FFmpeg source archives, not install packages for Windows. Do not delete or replace the user's originals.
+- The historical Android/Termux install failure was `pydantic-core` failing to build under Python 3.14; this is separate from FFmpeg. For Termux, install its Android build with `pkg install ffmpeg`. The Dockerfile already installs FFmpeg. Windows requires a prebuilt Windows build with both command-line tools.
+- Implemented in the current uncommitted workspace: per-project timeline/audio edit persistence; repeated uses of the same source as distinct timeline clips; still-image clips with adjustable 0.5–60 second duration; and a home-screen FFmpeg/FFprobe readiness/version check. Added platform-specific setup guidance and fixed the README to state both executable dependencies.
+- Downloaded a Windows x64 static GPL build from the FFmpeg Builds project's official GitHub release into the task workspace only (not the user's Downloads): `work/ffmpeg-n9.0-latest-win64-gpl-9.0.zip`. Its SHA-256 matched the publisher's `checksums.sha256` (`a22243087bdde7b1dc3e6c400ff1788d0f744c1212705f324aabf9a194934be9`). Verified `ffmpeg`/`ffprobe` version `n9.0.2-57-gd838f9f9ae-20261117`, H.264/AAC encoding, and a 3-second still-image + video timeline render.
+- Set up a portable Python 3.13 runtime in the task workspace and installed all `requirements.txt` dependencies; `pip check` reports no broken requirements. No system-wide Python or FFmpeg installation was made.
+- Ran the FastAPI studio locally with Uvicorn. Smoke-tested health, project creation, image/video upload, per-project edit save/reload (including repeated use of one video asset), and a real FFmpeg render combining a still image with video; FFprobe confirmed a 3.000-second H.264 1920x1080 MP4. This verifies the local Windows build, not the user's Android/Termux environment.
+- Existing source footage and first assembly remain local to the user's studio/Library; do not ask for another download or claim the first cut is a finished narrated master.
+- Next: pull this commit into the existing Android/Termux checkout, resolve the device-side Python dependency setup, restart the studio, and verify it on the phone. The ComfyUI GPU instance/workflow and final full brand-film master remain separate production steps; do not claim them complete. Any public deployment remains separate.
 
 ## Non-negotiable project goal
 

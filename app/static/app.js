@@ -6,6 +6,7 @@ let activeProjectId = null;
 let projectAssets = [];
 let timelineClips = [];
 let toastTimer;
+let editSaveTimer;
 
 function toast(message) {
   toastEl.textContent = message;
@@ -52,7 +53,11 @@ async function loadHealth() {
     const connected = health.comfyui.connected;
     document.getElementById("engine-dot").classList.toggle("ok", connected);
     document.getElementById("engine-status").textContent = connected ? "מחובר ומוכן" : (health.comfyui.configured ? "השרת לא זמין" : "טרם הוגדר שרת");
-    document.getElementById("engine-detail").textContent = connected ? "ComfyUI מחובר. ניתן לבדוק workflows ולהתחיל הפקה." : "הממשק מוכן. כדי להפיק וידאו יש לחבר כתובת של שרת ComfyUI עם GPU.";
+    const renderReady = health.ffmpeg?.available && health.ffmpeg?.ffprobe_available;
+    const renderStatus = renderReady ? "מנוע העריכה FFmpeg מוכן (" + escapeHtml(health.ffmpeg.version) + ")." : "FFmpeg או FFprobe לא זמינים — לא ניתן לייצא עד להתקנת מנוע העריכה.";
+    document.getElementById("engine-detail").textContent = (connected ? "ComfyUI מחובר." : "ComfyUI עדיין לא מחובר.") + " " + renderStatus;
+    document.getElementById("ffmpeg-status").textContent = renderReady ? "מוכן · " + health.ffmpeg.version : "לא זמין";
+    document.getElementById("ffmpeg-dot").classList.toggle("ok", Boolean(renderReady));
     const pill = document.getElementById("connection-pill");
     pill.textContent = connected ? "מחובר" : "לא מחובר";
     pill.classList.toggle("ok", connected);
@@ -80,12 +85,21 @@ document.getElementById("project-form").addEventListener("submit", async event =
 });
 async function openProject(projectId) {
   try {
+    if (activeProjectId && activeProjectId !== projectId) {
+      clearTimeout(editSaveTimer);
+      await saveProjectEdit();
+    }
     const project = await api("/api/projects/" + encodeURIComponent(projectId));
+    const edit = await api("/api/projects/" + encodeURIComponent(projectId) + "/edit");
     activeProjectId = project.id;
     document.getElementById("detail-title").textContent = project.title;
     document.getElementById("detail-brief").textContent = project.brief || "לא הוגדר בריף.";
-    timelineClips = [];
+    timelineClips = edit.clips || [];
     renderAssets(project.assets || []);
+    document.getElementById("voiceover-track").value = edit.voiceover_asset_id || "";
+    document.getElementById("music-track").value = edit.music_asset_id || "";
+    document.getElementById("music-volume").value = edit.music_volume ?? 0.18;
+    document.getElementById("edit-save-status").textContent = edit.updated_at ? "העריכה נשמרה " + shortDate(edit.updated_at) : "העריכה נשמרת אוטומטית לכל פרויקט.";
     detailDialog.showModal();
   } catch (error) { toast(error.message); }
 }
@@ -94,10 +108,11 @@ function renderAssets(assets) {
   const list = document.getElementById("asset-list");
   list.innerHTML = assets.length ? assets.map(asset => {
     const isVideo = /\.(mp4|mov|m4v|webm|avi)$/i.test(asset.filename);
+    const isImage = /\.(jpg|jpeg|png|webp)$/i.test(asset.filename);
     const isAudio = /\.(wav|mp3|m4a|aac)$/i.test(asset.filename);
     const action = isVideo
       ? '<button class="asset-add-btn" type="button" data-add-clip="' + escapeHtml(asset.id) + '">＋ לציר העריכה</button><button class="asset-add-btn storyboard-trigger" type="button" data-storyboard="' + escapeHtml(asset.id) + '">▦ לוח תמונות</button>'
-      : '';
+      : isImage ? '<button class="asset-add-btn" type="button" data-add-clip="' + escapeHtml(asset.id) + '">＋ לציר העריכה</button>' : '';
     return '<div class="asset-row"><span>▧ ' + escapeHtml(asset.filename) + '</span><div class="asset-actions"><small>' + (asset.size_bytes / 1024 / 1024).toFixed(1) + ' MB</small>' + action + '</div></div>';
   }).join("") : '<div class="asset-row"><span>עדיין לא הועלו חומרי גלם</span><small>0 קבצים</small></div>';
   list.querySelectorAll("[data-add-clip]").forEach(button => button.addEventListener("click", () => addClip(button.dataset.addClip)));
@@ -137,22 +152,27 @@ async function generateStoryboard(assetId, triggerButton) {
   }
 }
 function addClip(assetId) {
-  if (timelineClips.some(clip => clip.asset_id === assetId)) { toast("הקטע כבר נמצא בציר העריכה"); return; }
-  timelineClips.push({asset_id:assetId,start_seconds:0,end_seconds:null});
+  timelineClips.push({asset_id:assetId,start_seconds:0,end_seconds:null,image_duration_seconds:5});
   renderTimeline();
+  scheduleEditSave();
 }
 function renderTimeline() {
   const host = document.getElementById("timeline-list");
   host.innerHTML = timelineClips.length ? timelineClips.map((clip,index) => {
     const asset = projectAssets.find(item => item.id === clip.asset_id);
     if (!asset) return "";
-    return '<article class="timeline-clip" data-clip-index="' + index + '"><div class="timeline-clip-head"><strong>' + (index+1) + '. ' + escapeHtml(asset.filename) + '</strong><div class="timeline-controls"><button type="button" data-up="' + index + '" aria-label="הזז למעלה" ' + (index===0?'disabled':'') + '>↑</button><button type="button" data-down="' + index + '" aria-label="הזז למטה" ' + (index===timelineClips.length-1?'disabled':'') + '>↓</button><button type="button" data-remove="' + index + '" aria-label="הסר">×</button></div></div><div class="trim-fields"><label>התחלה (שניות)<input type="number" min="0" step="0.1" value="' + clip.start_seconds + '" data-start="' + index + '"></label><label>סיום (ריק = סוף הקובץ)<input type="number" min="0.1" step="0.1" value="' + (clip.end_seconds ?? "") + '" data-end="' + index + '"></label></div></article>';
+    const isImage = /\.(jpg|jpeg|png|webp)$/i.test(asset.filename);
+    const timing = isImage
+      ? '<div class="trim-fields"><label>משך התמונה (שניות)<input type="number" min="0.5" max="60" step="0.5" value="' + (clip.image_duration_seconds ?? 5) + '" data-image-duration="' + index + '"></label></div>'
+      : '<div class="trim-fields"><label>התחלה (שניות)<input type="number" min="0" step="0.1" value="' + clip.start_seconds + '" data-start="' + index + '"></label><label>סיום (ריק = סוף הקובץ)<input type="number" min="0.1" step="0.1" value="' + (clip.end_seconds ?? "") + '" data-end="' + index + '"></label></div>';
+    return '<article class="timeline-clip" data-clip-index="' + index + '"><div class="timeline-clip-head"><strong>' + (index+1) + '. ' + (isImage?'תמונה · ':'') + escapeHtml(asset.filename) + '</strong><div class="timeline-controls"><button type="button" data-up="' + index + '" aria-label="הזז למעלה" ' + (index===0?'disabled':'') + '>↑</button><button type="button" data-down="' + index + '" aria-label="הזז למטה" ' + (index===timelineClips.length-1?'disabled':'') + '>↓</button><button type="button" data-remove="' + index + '" aria-label="הסר">×</button></div></div>' + timing + '</article>';
   }).join("") : '<div class="timeline-empty">עדיין לא נוספו קטעים לציר העריכה. לחץ על „לציר העריכה” ליד סרטון בספריית חומרי הגלם.</div>';
   host.querySelectorAll("[data-up]").forEach(button => button.addEventListener("click", () => moveClip(Number(button.dataset.up),-1)));
   host.querySelectorAll("[data-down]").forEach(button => button.addEventListener("click", () => moveClip(Number(button.dataset.down),1)));
-  host.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => { timelineClips.splice(Number(button.dataset.remove),1); renderTimeline(); }));
-  host.querySelectorAll("[data-start]").forEach(input => input.addEventListener("change", () => { timelineClips[Number(input.dataset.start)].start_seconds = Math.max(0,Number(input.value)||0); }));
-  host.querySelectorAll("[data-end]").forEach(input => input.addEventListener("change", () => { const value=input.value.trim(); timelineClips[Number(input.dataset.end)].end_seconds=value===""?null:Math.max(0,Number(value)||0); }));
+  host.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => { timelineClips.splice(Number(button.dataset.remove),1); renderTimeline(); scheduleEditSave(); }));
+  host.querySelectorAll("[data-start]").forEach(input => input.addEventListener("change", () => { timelineClips[Number(input.dataset.start)].start_seconds = Math.max(0,Number(input.value)||0); scheduleEditSave(); }));
+  host.querySelectorAll("[data-end]").forEach(input => input.addEventListener("change", () => { const value=input.value.trim(); timelineClips[Number(input.dataset.end)].end_seconds=value===""?null:Math.max(0,Number(value)||0); scheduleEditSave(); }));
+  host.querySelectorAll("[data-image-duration]").forEach(input => input.addEventListener("change", () => { timelineClips[Number(input.dataset.imageDuration)].image_duration_seconds = Math.min(60,Math.max(0.5,Number(input.value)||5)); input.value=timelineClips[Number(input.dataset.imageDuration)].image_duration_seconds; scheduleEditSave(); }));
   document.getElementById("render-timeline-btn").disabled = timelineClips.length === 0;
 }
 function moveClip(index,delta) {
@@ -160,6 +180,30 @@ function moveClip(index,delta) {
   if (next<0 || next>=timelineClips.length) return;
   [timelineClips[index],timelineClips[next]]=[timelineClips[next],timelineClips[index]];
   renderTimeline();
+  scheduleEditSave();
+}
+function currentEdit() {
+  return {
+    clips:timelineClips,
+    voiceover_asset_id:document.getElementById("voiceover-track").value || null,
+    music_asset_id:document.getElementById("music-track").value || null,
+    music_volume:Number(document.getElementById("music-volume").value)
+  };
+}
+async function saveProjectEdit() {
+  if (!activeProjectId) return;
+  const saved = await api("/api/projects/" + encodeURIComponent(activeProjectId) + "/edit", {
+    method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(currentEdit())
+  });
+  document.getElementById("edit-save-status").textContent = "העריכה נשמרה " + shortDate(saved.updated_at);
+}
+function scheduleEditSave() {
+  if (!activeProjectId) return;
+  document.getElementById("edit-save-status").textContent = "שומר שינויים…";
+  clearTimeout(editSaveTimer);
+  editSaveTimer = setTimeout(() => saveProjectEdit().catch(error => {
+    document.getElementById("edit-save-status").textContent = "השמירה נכשלה: " + error.message;
+  }), 450);
 }
 function populateAudioTracks() {
   const audio = projectAssets.filter(asset => /\.(wav|mp3|m4a|aac)$/i.test(asset.filename));
@@ -181,12 +225,17 @@ document.getElementById("render-timeline-btn").addEventListener("click", async (
     music_volume:Number(document.getElementById("music-volume").value)
   };
   try {
+    clearTimeout(editSaveTimer);
+    await saveProjectEdit();
     const render=await api("/api/projects/"+encodeURIComponent(activeProjectId)+"/render",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     result.innerHTML='<a class="render-download" href="' + escapeHtml(render.download_url) + '" download>הורדת הסרט המיוצא ←</a><span class="render-meta"> · ' + Math.round(render.duration_seconds) + ' שניות</span>';
     toast("הייצוא הושלם");
   } catch(error) { result.textContent=error.message; toast(error.message); }
   finally { button.textContent="ייצוא הסרט"; button.disabled=timelineClips.length===0; }
 });
+document.getElementById("voiceover-track").addEventListener("change", scheduleEditSave);
+document.getElementById("music-track").addEventListener("change", scheduleEditSave);
+document.getElementById("music-volume").addEventListener("input", scheduleEditSave);
 document.getElementById("youtube-import-btn").addEventListener("click", async () => {
   const input = document.getElementById("youtube-url");
   const button = document.getElementById("youtube-import-btn");
@@ -213,7 +262,11 @@ document.getElementById("youtube-import-btn").addEventListener("click", async ()
     button.textContent = "ייבוא לפרויקט";
   }
 });
-document.getElementById("close-detail").addEventListener("click", () => detailDialog.close());
+document.getElementById("close-detail").addEventListener("click", () => {
+  clearTimeout(editSaveTimer);
+  saveProjectEdit().catch(error => { document.getElementById("edit-save-status").textContent = "השמירה נכשלה: " + error.message; });
+  detailDialog.close();
+});
 document.getElementById("asset-input").addEventListener("change", async event => {
   const files = [...event.target.files];
   if (!activeProjectId || !files.length) return;

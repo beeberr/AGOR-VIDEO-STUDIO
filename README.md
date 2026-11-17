@@ -9,7 +9,7 @@ A reusable video-production workspace built around **ComfyUI**. AGOR's brand fil
 - Upload and local organization of source video, images, and audio.
 - Private YouTube import for videos the user owns or is authorized to reuse, using yt-dlp; YouTube links are validated and downloads are limited by configured file size, 15-minute duration, and 10-minute execution timeout.
 - Automatic video storyboard: extract up to 80 representative frames from an existing video asset at selectable intervals (5/10/15/30 seconds), with timestamped responsive thumbnails; original media remains unchanged.
-- Timeline editor: add source clips, reorder them, set per-clip in/out points in seconds, and export a normalized 1080p MP4 with FFmpeg.
+- Timeline editor: add video clips and still images, reorder them, set video in/out points and still-image durations, and export a normalized 1080p MP4 with FFmpeg. Edit decisions and audio-track selections save per project.
 - Separate optional voiceover and music tracks, including adjustable music volume; the render mixes the selected audio tracks and loops background music to the film duration.
 - Docker image installs FFmpeg from the distribution package manager; no FFmpeg subscription is required.
 - ComfyUI connection health check.
@@ -25,10 +25,11 @@ python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
 
-Install FFmpeg separately on the host and ensure `ffmpeg` is on `PATH` (the Docker image includes it).
 cp .env.example .env
 uvicorn app.main:app --reload
 ```
+
+The app needs both `ffmpeg` and `ffprobe` on `PATH` for storyboards and rendering. Docker installs FFmpeg automatically. For Windows, download a prebuilt Windows build; the `.tar.xz` files linked as FFmpeg source code are for compiling FFmpeg and do not contain `ffmpeg.exe`. For Android/Termux, install the package with `pkg install ffmpeg`. See [FFmpeg setup and troubleshooting](production/FFMPEG_SETUP.md).
 
 Open http://localhost:8000.
 
